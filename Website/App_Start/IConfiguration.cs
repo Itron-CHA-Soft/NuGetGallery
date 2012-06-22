@@ -8,6 +8,7 @@ namespace NuGetGallery
         string AzureStorageBlobUrl { get; }
         string FileStorageDirectory { get; }
         PackageStoreType PackageStoreType { get; }
+        bool SmtpEnableSsl { get; }
 
         string GetSiteRoot(bool useHttps);
     }

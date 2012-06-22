@@ -18,13 +18,13 @@ namespace NuGetGallery
             this.userSvc = userSvc;
         }
 
-        [RequireRemoteHttps]
+        //[RequireRemoteHttps]
         public virtual ActionResult LogOn()
         {
             return View();
         }
 
-        [HttpPost, RequireRemoteHttps]
+        //[HttpPost, RequireRemoteHttps]
         public virtual ActionResult LogOn(SignInRequest request, string returnUrl)
         {
             // TODO: improve the styling of the validation summary
