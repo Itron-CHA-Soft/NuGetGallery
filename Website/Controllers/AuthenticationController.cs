@@ -25,6 +25,7 @@ namespace NuGetGallery
         }
 
         //[HttpPost, RequireRemoteHttps]
+        [HttpPost]
         public virtual ActionResult LogOn(SignInRequest request, string returnUrl)
         {
             // TODO: improve the styling of the validation summary
