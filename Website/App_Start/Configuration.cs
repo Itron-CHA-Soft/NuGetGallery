@@ -86,7 +86,7 @@ namespace NuGetGallery
         {
           get
           {
-            return ReadConfiguration<bool>(
+            return ReadAppSettings<bool>(
              "SmtpEnableSsl",
              (value) => bool.Parse(value ?? bool.TrueString));
           }
