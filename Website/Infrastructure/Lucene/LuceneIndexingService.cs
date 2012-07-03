@@ -182,15 +182,10 @@ namespace NuGetGallery
             var tokens = term.Split(idSeparators, StringSplitOptions.RemoveEmptyEntries);
 
             // For each token, further attempt to tokenize camelcase values. e.g. .EventStream -> Event, Stream. 
-            // Skip the exact term since we index it indep
-            var result = tokens.Concat(tokens.SelectMany(CamelCaseTokenize))
+            var result = tokens.Concat(new[] { term })
+                               .Concat(tokens.SelectMany(CamelCaseTokenize))
                                .Distinct(StringComparer.OrdinalIgnoreCase)
-                               .Where(t => !term.Equals(t))
                                .ToList();
-            if (result.Count == 1)
-            {
-                return Enumerable.Empty<string>();
-            }
             return result;
         }
 

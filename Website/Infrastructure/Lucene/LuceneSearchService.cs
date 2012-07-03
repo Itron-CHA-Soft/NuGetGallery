@@ -95,7 +95,7 @@ namespace NuGetGallery
             var queryParser = new MultiFieldQueryParser(LuceneCommon.LuceneVersion, fields.Keys.ToArray(), analyzer, fields);
 
             var conjuctionQuery = new BooleanQuery();
-            conjuctionQuery.SetBoost(1.2f);
+            conjuctionQuery.SetBoost(2.0f);
             var disjunctionQuery = new BooleanQuery();
             disjunctionQuery.SetBoost(0.1f);
             var wildCardQuery = new BooleanQuery();
@@ -106,8 +106,9 @@ namespace NuGetGallery
             
             foreach(var term in GetSearchTerms(searchTerm))
             {
-                conjuctionQuery.Add(queryParser.Parse(term), BooleanClause.Occur.MUST);
-                disjunctionQuery.Add(queryParser.Parse(term), BooleanClause.Occur.SHOULD);
+                var termQuery = queryParser.Parse(term);
+                conjuctionQuery.Add(termQuery, BooleanClause.Occur.MUST);
+                disjunctionQuery.Add(termQuery, BooleanClause.Occur.SHOULD);
 
                 foreach (var field in fields)
                 {
