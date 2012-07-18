@@ -18,6 +18,11 @@ namespace NuGetGallery
             this.fileSystemSvc = fileSystemSvc;
         }
 
+        public bool AllowCachingOfPackage
+        {
+            get { return true; }
+        }
+
         static string BuildPath(
             string fileStorageDirectory,
             string folderName,

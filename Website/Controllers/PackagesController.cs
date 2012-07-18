@@ -136,7 +136,6 @@ namespace NuGetGallery
                 page = 1;
             }
 
-
             IQueryable<Package> packageVersions = packageSvc.GetLatestPackageVersions(allowPrerelease: true);
 
             q = (q ?? "").Trim();
@@ -148,33 +147,15 @@ namespace NuGetGallery
                 sortOrder = q.IsEmpty() ? Constants.PopularitySortOrder : Constants.RelevanceSortOrder;
             }
 
-            if (GetIdentity().IsAuthenticated)
-            {
-                // Only show listed packages. For unlisted packages, only show them if the owner is viewing it.
-                packageVersions = packageVersions.Where(p => p.Listed || p.PackageRegistration.Owners.Any(owner => owner.Username == User.Identity.Name));
-            }
-            else
-            {
-                packageVersions = packageVersions.Where(p => p.Listed);
-            }
-
             int totalHits;
             if (!String.IsNullOrEmpty(q))
             {
-                if (sortOrder.Equals(Constants.RelevanceSortOrder, StringComparison.OrdinalIgnoreCase))
+                var searchFilter = GetSearchFilter(q, sortOrder, page);
+                packageVersions = searchSvc.Search(packageVersions, searchFilter, out totalHits);
+                if (page == 1 && !packageVersions.Any())
                 {
-                    packageVersions = searchSvc.SearchWithRelevance(packageVersions, q, take: page * Constants.DefaultPackageListPageSize, totalHits: out totalHits);
-                    if (page == 1 && !packageVersions.Any())
-                    {
-                        // In the event the index wasn't updated, we may get an incorrect count. 
-                        totalHits = 0;
-                    }
-                }
-                else
-                {
-                    packageVersions = searchSvc.Search(packageVersions, q)
-                                                   .SortBy(GetSortExpression(sortOrder));
-                    totalHits = packageVersions.Count();
+                    // In the event the index wasn't updated, we may get an incorrect count. 
+                    totalHits = 0;
                 }
             }
             else
@@ -194,20 +175,6 @@ namespace NuGetGallery
             ViewBag.SearchTerm = q;
 
             return View(viewModel);
-        }
-
-        private static string GetSortExpression(string sortOrder)
-        {
-            switch (sortOrder)
-            {
-                case Constants.AlphabeticSortOrder:
-                    return "PackageRegistration.Id";
-                case Constants.RecentSortOrder:
-                    return "Published desc";
-                case Constants.PopularitySortOrder:
-                default:
-                    return "PackageRegistration.DownloadCount desc";
-            }
         }
 
         // NOTE: Intentionally NOT requiring authentication
@@ -552,6 +519,48 @@ namespace NuGetGallery
         protected internal virtual IPackage ReadNuGetPackage(Stream stream)
         {
             return new ZipPackage(stream);
+        }
+
+        private SearchFilter GetSearchFilter(string q, string sortOrder, int page)
+        {
+            var searchFilter = new SearchFilter
+            {
+                SearchTerm = q,
+                Skip = (page - 1) * Constants.DefaultPackageListPageSize, // pages are 1-based. 
+                Take = Constants.DefaultPackageListPageSize
+            };
+
+            switch (sortOrder)
+            {
+                case Constants.AlphabeticSortOrder:
+                    searchFilter.SortProperty = SortProperty.DisplayName;
+                    searchFilter.SortDirection = SortDirection.Ascending;
+                    break;
+                case Constants.RecentSortOrder:
+                    searchFilter.SortProperty = SortProperty.Recent;
+                    break;
+                case Constants.PopularitySortOrder:
+                    searchFilter.SortProperty = SortProperty.DownloadCount;
+                    break;
+                default:
+                    searchFilter.SortProperty = SortProperty.Relevance;
+                    break;
+            }
+            return searchFilter;
+        }
+
+        private static string GetSortExpression(string sortOrder)
+        {
+            switch (sortOrder)
+            {
+                case Constants.AlphabeticSortOrder:
+                    return "PackageRegistration.Id";
+                case Constants.RecentSortOrder:
+                    return "Published desc";
+                case Constants.PopularitySortOrder:
+                default:
+                    return "PackageRegistration.DownloadCount desc";
+            }
         }
     }
 }
