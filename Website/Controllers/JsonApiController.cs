@@ -5,19 +5,27 @@ using MvcHaack.Ajax;
 
 namespace NuGetGallery
 {
-    public partial class JsonApiController : JsonController
+
+  public partial class JsonApiController : JsonController
     {
         IPackageService packageSvc;
         IUserService userSvc;
         IEntityRepository<PackageOwnerRequest> packageOwnerRequestRepository;
         IMessageService messageSvc;
+        readonly GallerySetting settings;
 
-        public JsonApiController(IPackageService packageSvc, IUserService userSvc, IEntityRepository<PackageOwnerRequest> packageOwnerRequestRepository, IMessageService messageService)
+        public JsonApiController(
+          IPackageService packageSvc,
+          IUserService userSvc,
+          IEntityRepository<PackageOwnerRequest> packageOwnerRequestRepository,
+          IMessageService messageService,
+          GallerySetting settings)
         {
             this.packageSvc = packageSvc;
             this.userSvc = userSvc;
             this.packageOwnerRequestRepository = packageOwnerRequestRepository;
             this.messageSvc = messageService;
+            this.settings = settings;
         }
 
         [Authorize]
@@ -65,13 +73,21 @@ namespace NuGetGallery
                 return new { success = false, message = "Owner not found" };
             }
 
-            var currentUser = userSvc.FindByUsername(HttpContext.User.Identity.Name);
-            var ownerRequest = packageSvc.CreatePackageOwnerRequest(package, currentUser, user);
+            if (settings.ConfirmOwnerPackage)
+            {
+              var currentUser = userSvc.FindByUsername(HttpContext.User.Identity.Name);
+              var ownerRequest = packageSvc.CreatePackageOwnerRequest(package, currentUser, user);
 
-            var confirmationUrl = Url.ConfirmationUrl(MVC.Packages.ConfirmOwner().AddRouteValue("id", package.Id), user.Username, ownerRequest.ConfirmationCode, Request.Url.Scheme);
-            messageSvc.SendPackageOwnerRequest(currentUser, user, package, confirmationUrl);
+              var confirmationUrl = Url.ConfirmationUrl(MVC.Packages.ConfirmOwner().AddRouteValue("id", package.Id), user.Username, ownerRequest.ConfirmationCode, Request.Url.Scheme);
+              messageSvc.SendPackageOwnerRequest(currentUser, user, package, confirmationUrl);
 
-            return new { success = true, name = user.Username, pending = true };
+              return new { success = true, name = user.Username, pending = true };
+            }
+            else
+            {
+              packageSvc.AddPackageOwner(package, user);
+              return new { success = true, name = user.Username, pending = false };
+            }
         }
 
         public object RemovePackageOwner(string id, string username)

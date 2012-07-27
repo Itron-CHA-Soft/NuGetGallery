@@ -60,9 +60,10 @@
                     .done(function (data) {
                         if (data.success) {
                             viewModel.newOwner().name(data.name);
-                            viewModel.newOwner().pending(true);
+                            viewModel.newOwner().pending(data.pending);
                             viewModel.owners.push(viewModel.newOwner());
                             viewModel.newOwner(new Owner(null));
+                            viewModel.message('');
                         }
                         else {
                             viewModel.message(data.message);

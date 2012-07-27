@@ -32,7 +32,8 @@ namespace NuGetGallery.Migrations
                     SmtpPort = null,
                     GalleryOwnerEmail = GalleryOwnerEmail,
                     GalleryOwnerName = GalleryOwnerName,
-                    ConfirmEmailAddresses = true
+                    ConfirmEmailAddresses = true,
+                    ConfirmOwnerPackage = true
                 });
                 context.SaveChanges();
             }
