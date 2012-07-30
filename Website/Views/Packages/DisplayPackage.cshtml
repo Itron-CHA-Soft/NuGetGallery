@@ -20,8 +20,15 @@
         <div class="stat">
             <p class="stat-number">@Model.PublishedDate.ToShortDateString()</p>
             <p class="stat-label">
-                Published date</p>
+              Published date</p>
         </div>
+        @if (!string.IsNullOrEmpty(Model.PublisherName)) {
+            <div class="stat">
+                <p class="stat-number">@Model.PublisherName</p>
+                <p class="stat-label">
+                  Publisher</p>
+            </div>
+        }
     </div>
     <nav>
         <ul class="links">

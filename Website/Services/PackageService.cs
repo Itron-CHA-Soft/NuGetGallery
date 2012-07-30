@@ -44,7 +44,7 @@ namespace NuGetGallery
 
             var packageRegistration = CreateOrGetPackageRegistration(currentUser, nugetPackage);
 
-            var package = CreatePackageFromNuGetPackage(packageRegistration, nugetPackage);
+            var package = CreatePackageFromNuGetPackage(currentUser, packageRegistration, nugetPackage);
             packageRegistration.Packages.Add(package);
 
             using (var tx = new TransactionScope())
@@ -112,6 +112,7 @@ namespace NuGetGallery
             IEnumerable<Package> packagesQuery = packageRepo.GetAll()
                                                             .Include(p => p.Authors)
                                                             .Include(p => p.PackageRegistration)
+                                                            .Include(p => p.Publisher)
                                                             .Where(p => (p.PackageRegistration.Id == id));
             if (String.IsNullOrEmpty(version) && !allowPrerelease) 
             {
@@ -245,7 +246,7 @@ namespace NuGetGallery
             return packageRegistration;
         }
 
-        internal Package CreatePackageFromNuGetPackage(PackageRegistration packageRegistration, IPackage nugetPackage)
+        internal Package CreatePackageFromNuGetPackage(User currentUser, PackageRegistration packageRegistration, IPackage nugetPackage)
         {
             var package = packageRegistration.Packages
                 .Where(pv => pv.Version == nugetPackage.Version.ToString())
@@ -271,7 +272,8 @@ namespace NuGetGallery
                 Published = now,
                 Copyright = nugetPackage.Copyright,
                 IsPrerelease = !nugetPackage.IsReleaseVersion(),
-                Listed = true
+                Listed = true,
+                Publisher = currentUser
             };
 
             if (nugetPackage.IconUrl != null)

@@ -99,6 +99,26 @@ namespace NuGetGallery
                 Assert.Equal("theFirstDependency:[1.0, 2.0):net4000|theSecondDependency:[1.0]:net4000|theThirdDependency::net4000|theFourthDependency:[1.0]:net35", package.FlattenedDependencies);
             }
 
+            [Fact]
+            public void WillSaveThePublisherWhenCreatingANewPackage()
+            {
+              var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
+              var service = CreateService(
+                  packageRegistrationRepo: packageRegistrationRepo,
+                  setup: mockPackageSvc =>
+                  {
+                    mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null);
+                  });
+              var nugetPackage = CreateNuGetPackage();
+              var currentUser = new User();
+
+              var package = service.CreatePackage(
+                  nugetPackage.Object,
+                  currentUser);
+
+              Assert.Equal(currentUser, package.Publisher);
+            }
+
             [Theory]
             [InlineData("a b c d e f g hi jk lmn opq rst u vw xy z", "a b c d e f g hi jk lmn")]
             [InlineData("a b c d ", "a b c d")]

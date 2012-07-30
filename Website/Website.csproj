@@ -362,6 +362,10 @@
     <Compile Include="Migrations\201207271117029_ConfirmOnwerPackageSettings.Designer.cs">
       <DependentUpon>201207271117029_ConfirmOnwerPackageSettings.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201207300944068_AddPublisherToPackage.cs" />
+    <Compile Include="Migrations\201207300944068_AddPublisherToPackage.Designer.cs">
+      <DependentUpon>201207300944068_AddPublisherToPackage.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\MigrationsConfiguration.cs" />
     <Compile Include="PackageCurators\IAutomaticPackageCurator.cs" />
     <Compile Include="PackageCurators\AutomaticPackageCurator.cs" />

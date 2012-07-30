@@ -47,6 +47,8 @@ namespace NuGetGallery
         public bool Listed { get; set; }
         public bool IsPrerelease { get; set; }
         public virtual ICollection<PackageFramework> SupportedFrameworks { get; set; }
+        public User Publisher { get; set; }
+        public int? PublisherKey { get; set; }
 
         // TODO: it would be nice if we could change the feed so that we don't need to flatten authors and dependencies
         public string FlattenedAuthors { get; set; }
