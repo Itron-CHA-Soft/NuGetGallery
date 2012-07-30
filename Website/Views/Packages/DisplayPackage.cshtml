@@ -144,8 +144,11 @@
                 <th>
                     Downloads
                 </th>
-                <th class="@(Model.IsOwner(User) ? "" : "last")">
+                <th>
                     Last updated
+                </th>
+                <th class="@(Model.IsOwner(User) ? "" : "last")">
+                    Publisher
                 </th>
                 @if (Model.IsOwner(User))
                 {
@@ -176,6 +179,8 @@
                         <td>@packageVersion.DownloadCount
                         </td>
                         <td>@packageVersion.PublishedDate.ToString("D")
+                        </td>
+                        <td>@packageVersion.PublisherName
                         </td>
                         @if (Model.IsOwner(User))
                         {
