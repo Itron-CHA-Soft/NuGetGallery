@@ -2,6 +2,7 @@
   $azureStorageAccessKey              = $env:NUGET_GALLERY_AZURE_STORAGE_ACCESS_KEY,
   $azureStorageAccountName            = $env:NUGET_GALLERY_AZURE_STORAGE_ACCOUNT_NAME,
   $azureStorageBlobUrl                = $env:NUGET_GALLERY_AZURE_STORAGE_BLOB_URL,
+  $azureCdnHost                       = $env:NuGET_GALLERY_AZURE_CDN_HOST,
   $remoteDesktopAccountExpiration     = $env:NUGET_GALLERY_REMOTE_DESKTOP_ACCOUNT_EXPIRATION,
   $remoteDesktopCertificateThumbprint = $env:NUGET_GALLERY_REMOTE_DESKTOP_CERTIFICATE_THUMBPRINT,
   $remoteDesktopEnctyptedPassword     = $env:NUGET_GALLERY_REMOTE_DESKTOP_ENCRYPTED_PASSWORD,
@@ -66,9 +67,15 @@ function set-connectionstring {
 
 function set-appsetting {
     param($path, $name, $value)
+
     $settings = [xml](get-content $path)
     $setting = $settings.configuration.appSettings.selectsinglenode("add[@key='" + $name + "']")
-    $setting.value = $value.toString()
+
+    if ($value -ne $null) {
+      $setting.value = $value.toString()
+    } else {
+      $setting.value = ""
+    }
     $resolvedPath = resolve-path($path) 
     $settings.save($resolvedPath)
 }
@@ -119,13 +126,16 @@ $csdefPath = join-path $scriptPath "NuGetGallery.csdef"
 $csdefBakPath = join-path $scriptPath "NuGetGallery.csdef.bak"
 $cscfgPath = join-path $scriptPath "NuGetGallery.cscfg"
 $cscfgBakPath = join-path $scriptPath "NuGetGallery.cscfg.bak"
-$gitPath = join-path (programfiles-dir) "Git\bin\git.exe"
+$gitPath = (get-command git)
 $compressionCmdScriptsPath = join-path $scriptPath "EnableDynamicHttpCompression.cmd"
 $binPath = join-path $websitePath "bin"
 $compressionCmdBinPath = join-path $binPath "EnableDynamicHttpCompression.cmd"
 
 if ($commitSha -eq $null) {
     $commitSha = (& "$gitPath" rev-parse HEAD)
+    $packageSha = (& "$gitPath" rev-parse --short HEAD)
+} else {
+  $packageSha = $commitSha
 }
 
 if ($commitBranch -eq $null) {
@@ -155,6 +165,7 @@ print-message("Setting the release tags")
 set-appsetting -path $webConfigPath -name "Gallery:AzureStorageAccessKey" -value $azureStorageAccessKey
 set-appsetting -path $webConfigPath -name "Gallery:AzureStorageAccountName" -value $azureStorageAccountName
 set-appsetting -path $webConfigPath -name "Gallery:AzureStorageBlobUrl" -value $azureStorageBlobUrl
+set-appsetting -path $webConfigPath -name "Gallery:AzureCdnHost" -value $azureCdnHost
 set-appsetting -path $webConfigPath -name "Gallery:GoogleAnalyticsPropertyId" -value $googleAnalyticsPropertyId
 set-appsetting -path $webConfigPath -name "Gallery:PackageStoreType" -value "AzureStorageBlob"
 set-appsetting -path $webConfigPath -name "Gallery:ReleaseBranch" -value $commitBranch
@@ -174,7 +185,10 @@ cp $csdefBakPath $csdefPath
 cp $cscfgBakPath $cscfgPath
 rm $compressionCmdBinPath
 
-print-success("Azure package and configuration dropped to $cspkgFolder.")
+$packageDateTime = (Get-Date -format "MMMdd @ HHmm")
+print-success("Azure $env:NUGET_GALLERY_ENV package and configuration dropped to $cspkgFolder.")
+print-success("Deployment Name: $packageDateTime ($packageSha on $commitBranch)")
+
 write-host ""
 
 Exit 0

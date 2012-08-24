@@ -11,7 +11,6 @@ namespace NuGetGallery
 {
     public class PackageService : IPackageService
     {
-        private const int MaxTagsToAllow = 10;
         private readonly ICryptographyService cryptoSvc;
         private readonly IEntityRepository<PackageRegistration> packageRegistrationRepo;
         private readonly IEntityRepository<Package> packageRepo;
@@ -153,7 +152,6 @@ namespace NuGetGallery
         {
             var packages = packageRepo.GetAll()
                 .Include(x => x.PackageRegistration)
-                .Include(x => x.Authors)
                 .Include(x => x.PackageRegistration.Owners)
                 .Where(p => p.Listed);
 
@@ -215,7 +213,7 @@ namespace NuGetGallery
 
                     // IMPORTANT: Until we understand privacy implications of storing IP Addresses thoroughly,
                     // It's better to just not store them. Hence "unknown". - Phil Haack 10/6/2011
-                    IPAddress = null,
+                    IPAddress = "unknown",
                     UserAgent = userAgent,
                     Package = package
                 });
@@ -246,7 +244,7 @@ namespace NuGetGallery
             return packageRegistration;
         }
 
-        internal Package CreatePackageFromNuGetPackage(User currentUser, PackageRegistration packageRegistration, IPackage nugetPackage)
+        Package CreatePackageFromNuGetPackage(User currentUser, PackageRegistration packageRegistration, IPackage nugetPackage)
         {
             var package = packageRegistration.Packages
                 .Where(pv => pv.Version == nugetPackage.Version.ToString())
@@ -268,6 +266,7 @@ namespace NuGetGallery
                 Hash = cryptoSvc.GenerateHash(packageFileStream.ReadAllBytes()),
                 PackageFileSize = packageFileStream.Length,
                 Created = now,
+                Language = nugetPackage.Language,
                 LastUpdated = now,
                 Published = now,
                 Copyright = nugetPackage.Copyright,
@@ -285,11 +284,7 @@ namespace NuGetGallery
             if (nugetPackage.Summary != null)
                 package.Summary = nugetPackage.Summary;
             if (nugetPackage.Tags != null)
-            {
-                // To prevent tag abuse, we'll allow a limited number of tags.
-                var tags = nugetPackage.Tags.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                package.Tags = String.Join(" ", tags.Take(MaxTagsToAllow));
-            }
+                package.Tags = nugetPackage.Tags;
             if (nugetPackage.Title != null)
                 package.Title = nugetPackage.Title;
 
@@ -333,14 +328,13 @@ namespace NuGetGallery
 
         static void ValidateNuGetPackage(IPackage nugetPackage)
         {
+            // TODO: Change this to use DataAnnotations
             if (nugetPackage.Id.Length > 128)
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Id", "128");
             if (nugetPackage.Authors != null && String.Join(",", nugetPackage.Authors.ToArray()).Length > 4000)
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Authors", "4000");
             if (nugetPackage.Copyright != null && nugetPackage.Copyright.Length > 4000)
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Copyright", "4000");
-            if (nugetPackage.DependencySets != null && nugetPackage.DependencySets.Flatten().Length > Int16.MaxValue)
-                throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Dependencies", Int16.MaxValue);
             if (nugetPackage.Description != null && nugetPackage.Description.Length > 4000)
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Description", "4000");
             if (nugetPackage.IconUrl != null && nugetPackage.IconUrl.ToString().Length > 4000)
@@ -349,12 +343,38 @@ namespace NuGetGallery
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "LicenseUrl", "4000");
             if (nugetPackage.ProjectUrl != null && nugetPackage.ProjectUrl.ToString().Length > 4000)
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "ProjectUrl", "4000");
-            if (nugetPackage.Summary != null && nugetPackage.Summary.ToString().Length > 4000)
+            if (nugetPackage.Summary != null && nugetPackage.Summary.Length > 4000)
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Summary", "4000");
             if (nugetPackage.Tags != null && nugetPackage.Tags.ToString().Length > 4000)
                 throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Tags", "4000");
-            if (nugetPackage.Title != null && nugetPackage.Title.ToString().Length > 4000)
-                throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Title", "4000");
+            if (nugetPackage.Title != null && nugetPackage.Title.Length > 256)
+                throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Title", "256");
+
+            if (nugetPackage.Version != null && nugetPackage.Version.ToString().Length > 64)
+            {
+                throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Version", "64");
+            }
+
+            if (nugetPackage.Language != null && nugetPackage.Language.Length > 20)
+            {
+                throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Language", "20");
+            }
+
+            foreach (var dependency in nugetPackage.DependencySets.SelectMany(s => s.Dependencies))
+            {
+                if (dependency.Id != null && dependency.Id.Length > 128)
+                {
+                    throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Dependency.Id", "128"); 
+                }
+
+                if (dependency.VersionSpec != null && dependency.VersionSpec.ToString().Length > 256)
+                {
+                    throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Dependency.VersionSpec", "256"); 
+                }
+            }
+
+            if (nugetPackage.DependencySets != null && nugetPackage.DependencySets.Flatten().Length > Int16.MaxValue)
+                throw new EntityException(Strings.NuGetPackagePropertyTooLong, "Dependencies", Int16.MaxValue);
         }
 
         private static void UpdateIsLatest(PackageRegistration packageRegistration)

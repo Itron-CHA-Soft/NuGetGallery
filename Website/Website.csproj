@@ -184,9 +184,8 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\WebActivator.1.4.4\lib\net40\WebActivator.dll</HintPath>
     </Reference>
-    <Reference Include="WebBackgrounder, Version=0.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\WebBackgrounder.0.1\lib\net40\WebBackgrounder.dll</HintPath>
+    <Reference Include="WebBackgrounder">
+      <HintPath>..\packages\WebBackgrounder.0.2.0\lib\net40\WebBackgrounder.dll</HintPath>
     </Reference>
     <Reference Include="WebBackgrounder.EntityFramework, Version=0.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -219,6 +218,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DataServices\DisregardODataInterceptor.cs" />
+    <Compile Include="DataServices\ODataRemoveVersionSorter.cs" />
     <Compile Include="DataServices\V2CuratedFeed.svc.cs">
       <DependentUpon>V2CuratedFeed.svc</DependentUpon>
     </Compile>
@@ -365,6 +365,21 @@
     <Compile Include="Migrations\201207300944068_AddPublisherToPackage.cs" />
     <Compile Include="Migrations\201207300944068_AddPublisherToPackage.Designer.cs">
       <DependentUpon>201207300944068_AddPublisherToPackage.cs</DependentUpon>
+    <Compile Include="Migrations\201208171904586_Language.cs" />
+    <Compile Include="Migrations\201208171904586_Language.Designer.cs">
+      <DependentUpon>201208171904586_Language.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\201208222206329_ColumnLengthOfPackageTable.cs" />
+    <Compile Include="Migrations\201208222206329_ColumnLengthOfPackageTable.Designer.cs">
+      <DependentUpon>201208222206329_ColumnLengthOfPackageTable.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\201208222227425_PackageIndexes.cs" />
+    <Compile Include="Migrations\201208222227425_PackageIndexes.Designer.cs">
+      <DependentUpon>201208222227425_PackageIndexes.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\201208230640333_PackageSortingIndexes.cs" />
+    <Compile Include="Migrations\201208230640333_PackageSortingIndexes.Designer.cs">
+      <DependentUpon>201208230640333_PackageSortingIndexes.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\MigrationsConfiguration.cs" />
     <Compile Include="PackageCurators\IAutomaticPackageCurator.cs" />

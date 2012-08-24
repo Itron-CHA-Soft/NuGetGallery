@@ -32,24 +32,5 @@ namespace NuGetGallery.Infrastructure
             // Assert
             Assert.Equal(tokens.OrderBy(p => p), result.OrderBy(p => p));
         }
-
-        [Fact]
-        public void UpdateIndexCreatesIndexDirectoryIfNotPresent()
-        {
-            // Arrange
-            var indexingService = new Mock<LuceneIndexingService>() { CallBase = true };
-            indexingService.Setup(s => s.CreateContext()).Returns<DbContext>(null);
-            indexingService.Setup(s => s.GetPackages(null, null)).Returns(new List<PackageIndexEntity> { new PackageIndexEntity() });
-            indexingService.Setup(s => s.GetLastWriteTime()).Returns<DateTime?>(null);
-
-            indexingService.Setup(s => s.WriteIndex(true, It.IsAny<List<PackageIndexEntity>>())).Verifiable();
-            indexingService.Setup(s => s.UpdateLastWriteTime()).Verifiable();
-
-            // Act
-            indexingService.Object.UpdateIndex();
-
-            // Assert
-            indexingService.Verify();
-        }
     }
 }
