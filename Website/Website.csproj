@@ -365,6 +365,7 @@
     <Compile Include="Migrations\201207300944068_AddPublisherToPackage.cs" />
     <Compile Include="Migrations\201207300944068_AddPublisherToPackage.Designer.cs">
       <DependentUpon>201207300944068_AddPublisherToPackage.cs</DependentUpon>
+    </Compile>  
     <Compile Include="Migrations\201208171904586_Language.cs" />
     <Compile Include="Migrations\201208171904586_Language.Designer.cs">
       <DependentUpon>201208171904586_Language.cs</DependentUpon>

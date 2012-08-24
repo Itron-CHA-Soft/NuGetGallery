@@ -22,8 +22,7 @@ namespace NuGetGallery.Services
             var configuration = new Mock<IConfiguration>(MockBehavior.Strict);
             configuration.Setup(c => c.GetSiteRoot(It.IsAny<bool>())).Returns("https://localhost:8081/");
             var searchService = new Mock<ISearchService>(MockBehavior.Strict);
-            int total;
-            searchService.Setup(s => s.Search(It.IsAny<IQueryable<Package>>(), It.IsAny<SearchFilter>(), out total)).Returns<IQueryable<Package>, string>((_, __) => _);
+            searchService.Setup(s => s.SearchWithRelevance(It.IsAny<IQueryable<Package>>(), It.IsAny<String>())).Returns<IQueryable<Package>, string>((_, __) => _);
             var v1Service = new TestableV1Feed(repo.Object, configuration.Object, searchService.Object);
 
             // Act
