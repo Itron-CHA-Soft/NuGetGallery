@@ -1,16 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Web;
+using System.Runtime.Serialization;
 using System.Web.Mvc;
 using System.Web.UI;
 using NuGet;
 
 namespace NuGetGallery
 {
-    public partial class ApiController : AppController
+	public partial class ApiController : AppController
     {
         private readonly IPackageService packageSvc;
         private readonly IUserService userSvc;
@@ -28,7 +30,7 @@ namespace NuGetGallery
             this.nugetExeDownloaderSvc = nugetExeDownloaderSvc;
         }
 
-        [ActionName("GetPackageApi"), HttpGet]
+        [ActionName("GetPackageApi"), HttpGet] 
         public virtual ActionResult GetPackage(string id, string version)
         {
             // if the version is null, the user is asking for the latest version. Presumably they don't want includePrerelease release versions. 
@@ -44,13 +46,10 @@ namespace NuGetGallery
 
             if (!string.IsNullOrWhiteSpace(package.ExternalPackageUrl))
                 return Redirect(package.ExternalPackageUrl);
-
-            if (packageFileSvc.AllowCachingOfPackage)
+            else
             {
-                AddCacheHeaders(package);
+                return packageFileSvc.CreateDownloadPackageActionResult(package);
             }
-
-            return packageFileSvc.CreateDownloadPackageActionResult(package);
         }
 
         [ActionName("GetNuGetExeApi"),
@@ -228,13 +227,6 @@ namespace NuGetGallery
         {
             var qry = GetService<IPackageVersionsQuery>();
             return new JsonNetResult(qry.Execute(id, includePrerelease).ToArray());
-        }
-
-        private void AddCacheHeaders(Package package)
-        {
-            Response.Cache.SetCacheability(HttpCacheability.Public);
-            Response.Cache.SetProxyMaxAge(TimeSpan.FromSeconds(Constants.CacheExpirationInSeconds));
-            Response.Cache.SetETag(package.Hash);
         }
     }
 }

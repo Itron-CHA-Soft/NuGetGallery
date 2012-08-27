@@ -16,7 +16,7 @@ namespace NuGetGallery
             LicenseUrl = package.LicenseUrl;
             LatestVersion = package.IsLatest;
             LatestStableVersion = package.IsLatestStable;
-            PublishedDate = package.Published;
+            LastUpdated = package.LastUpdated;
             Listed = package.Listed;
             DownloadCount = package.DownloadCount;
             Prerelease = package.IsPrerelease;
@@ -43,7 +43,7 @@ namespace NuGetGallery
         public string IconUrl { get; set; }
         public string ProjectUrl { get; set; }
         public string LicenseUrl { get; set; }
-        public DateTime PublishedDate { get; set; }
+        public DateTime LastUpdated { get; set; }
         public bool LatestVersion { get; set; }
         public bool LatestStableVersion { get; set; }
         public bool Prerelease { get; set; }

@@ -25,7 +25,5 @@ namespace NuGetGallery
             string folderName, 
             string fileName,
             Stream packageFile);
-
-        bool AllowCachingOfPackage { get; }
     }
 }

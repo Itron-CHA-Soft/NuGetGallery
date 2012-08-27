@@ -307,9 +307,7 @@ namespace NuGetGallery
             {
                 var fakeIdentity = new Mock<IIdentity>();
                 var httpContext = new Mock<HttpContextBase>();
-                var searchService = new Mock<ISearchService>();
-                
-                var controller = CreateController(fakeIdentity: fakeIdentity, httpContext: httpContext, searchService: searchService);
+                var controller = CreateController(fakeIdentity: fakeIdentity, httpContext: httpContext);
 
                 var result = controller.ListPackages(" test ") as ViewResult;
 

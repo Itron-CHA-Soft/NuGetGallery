@@ -214,10 +214,6 @@
     <Compile Include="CuratedPackagesController.generated.cs">
       <DependentUpon>T4MVC.tt</DependentUpon>
     </Compile>
-    <Compile Include="DataServices\CountInterceptor.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DataServices\DisregardODataInterceptor.cs" />
     <Compile Include="DataServices\ODataRemoveVersionSorter.cs" />
     <Compile Include="DataServices\V2CuratedFeed.svc.cs">
       <DependentUpon>V2CuratedFeed.svc</DependentUpon>
@@ -423,7 +419,6 @@
     <Compile Include="RequireRemoteHttpsAttribute.cs" />
     <Compile Include="Services\PackageSearchResults.cs" />
     <Compile Include="Services\AggregateStatsService.cs" />
-    <Compile Include="Services\SearchFilter.cs" />
     <Compile Include="Services\TestableStorageClientException.cs" />
     <Compile Include="Services\UploadFileService.cs" />
     <Compile Include="SharedController.generated.cs">

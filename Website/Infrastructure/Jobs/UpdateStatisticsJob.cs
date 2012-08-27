@@ -62,8 +62,7 @@ ON p.[Key] = tmp.PackageKey
 BEGIN TRANSACTION
 
     UPDATE p
-    SET p.DownLoadCount = stats.DownloadCount,
-        p.LastUpdated = GETUTCDATE()
+    SET p.DownLoadCount = stats.DownloadCount
     FROM Packages p INNER JOIN @DownloadStats stats
     ON p.[Key] = stats.PackageKey
 

@@ -5,8 +5,7 @@ using MvcHaack.Ajax;
 
 namespace NuGetGallery
 {
-
-  public partial class JsonApiController : JsonController
+    public partial class JsonApiController : JsonController
     {
         IPackageService packageSvc;
         IUserService userSvc;
@@ -75,18 +74,18 @@ namespace NuGetGallery
 
             if (settings.ConfirmOwnerPackage)
             {
-              var currentUser = userSvc.FindByUsername(HttpContext.User.Identity.Name);
-              var ownerRequest = packageSvc.CreatePackageOwnerRequest(package, currentUser, user);
+                var currentUser = userSvc.FindByUsername(HttpContext.User.Identity.Name);
+                var ownerRequest = packageSvc.CreatePackageOwnerRequest(package, currentUser, user);
 
-              var confirmationUrl = Url.ConfirmationUrl(MVC.Packages.ConfirmOwner().AddRouteValue("id", package.Id), user.Username, ownerRequest.ConfirmationCode, Request.Url.Scheme);
-              messageSvc.SendPackageOwnerRequest(currentUser, user, package, confirmationUrl);
+                var confirmationUrl = Url.ConfirmationUrl(MVC.Packages.ConfirmOwner().AddRouteValue("id", package.Id), user.Username, ownerRequest.ConfirmationCode, Request.Url.Scheme);
+                messageSvc.SendPackageOwnerRequest(currentUser, user, package, confirmationUrl);
 
-              return new { success = true, name = user.Username, pending = true };
+                return new { success = true, name = user.Username, pending = true };
             }
             else
             {
-              packageSvc.AddPackageOwner(package, user);
-              return new { success = true, name = user.Username, pending = false };
+                packageSvc.AddPackageOwner(package, user);
+                return new { success = true, name = user.Username, pending = false };
             }
         }
 

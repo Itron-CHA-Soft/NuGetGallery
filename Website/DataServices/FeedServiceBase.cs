@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Data.Services;
 using System.Data.Services.Common;
 using System.Data.Services.Providers;
@@ -28,8 +28,8 @@ namespace NuGetGallery
 
         protected FeedServiceBase(
             IEntitiesContext entities,
-            IEntityRepository<Package> packageRepo,
-            IConfiguration configuration,
+            IEntityRepository<Package> packageRepo, 
+            IConfiguration configuration, 
             ISearchService searchService)
         {
             this.entities = entities;
@@ -42,7 +42,7 @@ namespace NuGetGallery
         {
             get { return entities; }
         }
-
+        
         protected IEntityRepository<Package> PackageRepo
         {
             get { return packageRepo; }

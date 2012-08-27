@@ -68,7 +68,7 @@ namespace NuGetGallery
 
             if (String.IsNullOrEmpty(searchTerm))
             {
-              return packages.ToV1FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()));
+                return packages.ToV1FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()));
             }
             return SearchService.Search(packages, searchTerm)
                                 .ToV1FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()));

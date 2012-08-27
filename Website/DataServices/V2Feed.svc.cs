@@ -49,7 +49,7 @@ namespace NuGetGallery
             var packages = PackageRepo.GetAll().Where(p => p.Listed);
             if (!includePrerelease)
             {
-              packages = packages.Where(p => !p.IsPrerelease);
+                packages = packages.Where(p => !p.IsPrerelease);
             }
             return packages.Search(searchTerm)
                            .ToV2FeedPackageQuery(GetSiteRoot());
@@ -88,7 +88,7 @@ namespace NuGetGallery
                 var id = idValues[i];
                 SemanticVersion version;
                 SemanticVersion currentVersion;
-
+                
                 if (SemanticVersion.TryParse(versionValues[i], out currentVersion) &&
                      (!versionLookup.TryGetValue(id, out version) || (currentVersion > version)))
                 {

@@ -19,7 +19,7 @@ namespace NuGetGallery
         {
             if (String.IsNullOrEmpty(searchTerm))
             {
-              return packages;
+                return packages;
             }
             var keys = SearchCore(searchTerm);
             return SearchByKeys(packages, keys);
@@ -51,7 +51,7 @@ namespace NuGetGallery
 
             return keys.Select(key => LookupPackage(lookup, key))
                        .Where(p => p != null)
-                       .AsQueryable();  
+                       .AsQueryable();
         }
 
         private static Package LookupPackage(Dictionary<int, Package> dict, int key)
@@ -88,7 +88,7 @@ namespace NuGetGallery
         private static Query ParseQuery(string searchTerm)
         {
             var fields = new Dictionary<string, float> { { "Id", 1.2f }, { "Title", 1.0f }, { "Tags", 0.8f }, { "Description", 0.1f }, 
-                                                           { "Author", 1.0f } };
+                                                         { "Author", 1.0f } };
             var analyzer = new StandardAnalyzer(LuceneCommon.LuceneVersion);
             var queryParser = new MultiFieldQueryParser(LuceneCommon.LuceneVersion, fields.Keys.ToArray(), analyzer, fields);
 
@@ -104,8 +104,8 @@ namespace NuGetGallery
             var exactIdQuery = new TermQuery(new Term("Id-Exact", escapedSearchTerm));
             exactIdQuery.SetBoost(2.5f);
             var wildCardIdQuery = new WildcardQuery(new Term("Id-Exact", "*" + escapedSearchTerm + "*"));
-
-            foreach (var term in GetSearchTerms(searchTerm))
+            
+            foreach(var term in GetSearchTerms(searchTerm))
             {
                 var termQuery = queryParser.Parse(term);
                 conjuctionQuery.Add(termQuery, BooleanClause.Occur.MUST);
