@@ -12,3 +12,4 @@ _ReSharper.NuGetGallery
 _PackagedWebsite
 TestResults
 /Website/Website.Publish.xml
+*.pubxml
