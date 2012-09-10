@@ -2,7 +2,6 @@ using System;
 using System.Data.Entity;
 using System.Data.Services;
 using System.Linq;
-using System.ServiceModel;
 using System.ServiceModel.Web;
 using System.Web;
 using System.Web.Mvc;
@@ -35,6 +34,7 @@ namespace NuGetGallery
             {
                 Packages = PackageRepo.GetAll()
                                       .Where(p => !p.IsPrerelease)
+                                      .WithoutVersionSort()
                                       .ToV1FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()))
             };
         }
@@ -44,8 +44,7 @@ namespace NuGetGallery
            DataServiceOperationContext operationContext)
         {
             var package = (V1FeedPackage)entity;
-            var httpContext = new HttpContextWrapper(HttpContext.Current);
-            var urlHelper = new UrlHelper(new RequestContext(httpContext, new RouteData()));
+            var urlHelper = new UrlHelper(new RequestContext(HttpContext, new RouteData()));
 
             string url = urlHelper.PackageDownload(FeedVersion, package.Id, package.Version);
 
@@ -63,15 +62,14 @@ namespace NuGetGallery
         [WebGet]
         public IQueryable<V1FeedPackage> Search(string searchTerm, string targetFramework)
         {
-            // Only allow listed stable releases to be returned when searching the v1 feed.
-            var packages = PackageRepo.GetAll().Where(p => !p.IsPrerelease && p.Listed);
-
-            if (String.IsNullOrEmpty(searchTerm))
-            {
-                return packages.ToV1FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()));
-            }
-            return SearchService.Search(packages, searchTerm)
-                                .ToV1FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()));
+            var packages = PackageRepo.GetAll()
+                                      .Include(p => p.PackageRegistration)
+                                      .Include(p => p.PackageRegistration.Owners)
+                                      .Where(p => p.Listed && !p.IsPrerelease);
+            
+            // For v1 feed, only allow stable package versions.
+            packages = SearchCore(packages, searchTerm, targetFramework, includePrerelease: false);
+            return packages.ToV1FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()));
         }
     }
 }

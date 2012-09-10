@@ -32,6 +32,7 @@ namespace NuGetGallery
             return new FeedContext<V2FeedPackage>
             {
                 Packages = PackageRepo.GetAll()
+                                      .WithoutVersionSort()
                                       .ToV2FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()))
             };
         }
@@ -45,14 +46,11 @@ namespace NuGetGallery
         [WebGet]
         public IQueryable<V2FeedPackage> Search(string searchTerm, string targetFramework, bool includePrerelease)
         {
-            // Filter out unlisted packages when searching. We will return it when a generic "GetPackages" request comes and filter it on the client.
-            var packages = PackageRepo.GetAll().Where(p => p.Listed);
-            if (!includePrerelease)
-            {
-                packages = packages.Where(p => !p.IsPrerelease);
-            }
-            return packages.Search(searchTerm)
-                           .ToV2FeedPackageQuery(GetSiteRoot());
+            var packages = PackageRepo.GetAll()
+                                      .Include(p => p.PackageRegistration)
+                                      .Include(p => p.PackageRegistration.Owners)
+                                      .Where(p => p.Listed);
+            return SearchCore(packages, searchTerm, targetFramework, includePrerelease).ToV2FeedPackageQuery(GetSiteRoot());
         }
 
         [WebGet]
@@ -88,7 +86,7 @@ namespace NuGetGallery
                 var id = idValues[i];
                 SemanticVersion version;
                 SemanticVersion currentVersion;
-                
+
                 if (SemanticVersion.TryParse(versionValues[i], out currentVersion) &&
                      (!versionLookup.TryGetValue(id, out version) || (currentVersion > version)))
                 {
@@ -142,8 +140,7 @@ namespace NuGetGallery
            DataServiceOperationContext operationContext)
         {
             var package = (V2FeedPackage)entity;
-            var httpContext = new HttpContextWrapper(HttpContext.Current);
-            var urlHelper = new UrlHelper(new RequestContext(httpContext, new RouteData()));
+            var urlHelper = new UrlHelper(new RequestContext(HttpContext, new RouteData()));
 
             string url = urlHelper.PackageDownload(FeedVersion, package.Id, package.Version);
 
