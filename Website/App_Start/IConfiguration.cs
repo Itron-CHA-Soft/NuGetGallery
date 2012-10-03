@@ -10,6 +10,7 @@ namespace NuGetGallery
         string AzureCdnHost { get; }
         PackageStoreType PackageStoreType { get; }
         bool SmtpEnableSsl { get; }
+        bool UseEmulator { get; }
 
         string GetSiteRoot(bool useHttps);
     }
