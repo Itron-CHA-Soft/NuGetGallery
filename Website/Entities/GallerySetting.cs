@@ -1,9 +1,7 @@
-﻿
-namespace NuGetGallery
+﻿namespace NuGetGallery
 {
     public class GallerySetting : IEntity
     {
-        public int Key { get; set; }
         public int? DownloadStatsLastAggregatedId { get; set; }
         public string SmtpHost { get; set; }
         public string SmtpUsername { get; set; }
@@ -14,5 +12,6 @@ namespace NuGetGallery
         public string GalleryOwnerEmail { get; set; }
         public bool ConfirmEmailAddresses { get; set; }
         public bool ConfirmOwnerPackage { get; set; }
+        public int Key { get; set; }
     }
 }

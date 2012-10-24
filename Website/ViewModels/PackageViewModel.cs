@@ -1,13 +1,14 @@
 ﻿using System;
+
 namespace NuGetGallery
 {
     public class PackageViewModel : IPackageVersionModel
     {
-        readonly Package package;
+        private readonly Package _package;
 
         public PackageViewModel(Package package)
         {
-            this.package = package;
+            _package = package;
             Version = package.Version;
             Description = package.Description;
             ReleaseNotes = package.ReleaseNotes;
@@ -23,21 +24,6 @@ namespace NuGetGallery
             PublisherName = package.Publisher != null ? package.Publisher.Username : string.Empty;
         }
 
-        public string Id
-        {
-            get
-            {
-                return package.PackageRegistration.Id;
-            }
-        }
-        public string Version { get; set; }
-        public string Title
-        {
-            get
-            {
-                return String.IsNullOrEmpty(package.Title) ? package.PackageRegistration.Id : package.Title;
-            }
-        }
         public string Description { get; set; }
         public string ReleaseNotes { get; set; }
         public string IconUrl { get; set; }
@@ -50,12 +36,22 @@ namespace NuGetGallery
         public int DownloadCount { get; set; }
         public bool Listed { get; set; }
         public string PublisherName { get; set; }
+        
         public int TotalDownloadCount
         {
-            get
-            {
-                return package.PackageRegistration.DownloadCount;
-            }
+            get { return _package.PackageRegistration.DownloadCount; }
+        }
+
+        public string Id
+        {
+            get { return _package.PackageRegistration.Id; }
+        }
+
+        public string Version { get; set; }
+
+        public string Title
+        {
+            get { return String.IsNullOrEmpty(_package.Title) ? _package.PackageRegistration.Id : _package.Title; }
         }
 
         public bool IsCurrent(IPackageVersionModel current)
