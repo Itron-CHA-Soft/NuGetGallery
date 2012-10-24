@@ -13,7 +13,7 @@ namespace NuGetGallery.Controllers
             Mock<IEntityRepository<PackageOwnerRequest>> repository = null,
             Mock<IMessageService> messageService = null,
             Mock<IPrincipal> currentUser = null,
-            bool confirmOwnerPackage = true)
+            bool confirmOwnerPackage = true)
         {
             packageService = packageService ?? new Mock<IPackageService>();
             userService = userService ?? new Mock<IUserService>();
@@ -23,7 +23,7 @@ namespace NuGetGallery.Controllers
 
             var httpContext = new Mock<HttpContextBase>();
             httpContext.Setup(c => c.User).Returns(currentUser.Object);
-            var settings = new GallerySettings { ConfirmOwnerPackage = confirmOwnerPackage };
+            var settings = new GallerySetting { ConfirmOwnerPackage = confirmOwnerPackage };
             var controller = new JsonApiController(packageService.Object, userService.Object, repository.Object, messageService.Object, settings);
             TestUtility.SetupHttpContextMockForUrlGeneration(httpContext, controller);
             return controller;

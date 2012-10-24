@@ -17,7 +17,7 @@ namespace NuGetGallery
             IUserService userSvc,
             IEntityRepository<PackageOwnerRequest> packageOwnerRequestRepository,
             IMessageService messageService,
-            GallerySettings settings)
+            GallerySetting settings)
         {
             _packageSvc = packageSvc;
             _userSvc = userSvc;
