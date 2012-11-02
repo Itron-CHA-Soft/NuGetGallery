@@ -141,6 +141,10 @@
       <Private>True</Private>
       <HintPath>..\packages\AspNetMvc.3.0.20105.0\lib\net40\System.Web.Mvc.dll</HintPath>
     </Reference>
+    <Reference Include="System.Web.Razor, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Microsoft.AspNet.Razor.1.0.20105.408\lib\net40\System.Web.Razor.dll</HintPath>
+    </Reference>
     <Reference Include="System.Web.WebPages, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <Private>True</Private>
       <HintPath>..\packages\AspNetWebPages.Core.1.0.20105.407\lib\net40\System.Web.WebPages.dll</HintPath>
@@ -369,6 +373,14 @@
     <Compile Include="Migrations\201209181743161_AggregateStatsSp_ReduxLastUpdate.cs" />
     <Compile Include="Migrations\201209181743161_AggregateStatsSp_ReduxLastUpdate.Designer.cs">
       <DependentUpon>201209181743161_AggregateStatsSp_ReduxLastUpdate.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\201210312146585_GallerySettings_TotalDownloadCount.cs" />
+    <Compile Include="Migrations\201210312146585_GallerySettings_TotalDownloadCount.Designer.cs">
+      <DependentUpon>201210312146585_GallerySettings_TotalDownloadCount.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\201210312150156_AggregateStatistics_TotalDownloadCount.cs" />
+    <Compile Include="Migrations\201210312150156_AggregateStatistics_TotalDownloadCount.Designer.cs">
+      <DependentUpon>201210312150156_AggregateStatistics_TotalDownloadCount.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\MigrationsConfiguration.cs" />
     <Compile Include="Migrations\SqlResourceMigration.cs" />
