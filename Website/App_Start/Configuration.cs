@@ -97,12 +97,17 @@ namespace NuGetGallery
 
         public bool SmtpEnableSsl
         {
-          get
-          {
-            return ReadAppSettings<bool>(
-             "SmtpEnableSsl",
-             (value) => bool.Parse(value ?? bool.TrueString));
-          }
+            get
+            {
+                return ReadAppSettings(
+                   "SmtpEnableSsl",
+                   (value) => bool.Parse(value ?? bool.TrueString));
+            }
+        }
+
+        public string SiteName
+        {
+            get { return ReadAppSettings("SiteName"); }
         }
 
         protected virtual string GetConfiguredSiteRoot()

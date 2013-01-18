@@ -9,6 +9,7 @@
         string AzureCdnHost { get; }
         PackageStoreType PackageStoreType { get; }
         bool SmtpEnableSsl { get; }
+        string SiteName { get; }
         bool UseEmulator { get; }
 
         string GetSiteRoot(bool useHttps);

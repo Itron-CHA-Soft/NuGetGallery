@@ -342,6 +342,16 @@ nav.main ul a:hover {
     text-indent: -9999px;
     width: 345px;
 }
+
+    /* Site name */
+
+#siteName {
+    float: left;
+    padding: 23px 0 0 15px;
+    font-size: 3.5em;
+    color: #fff;
+    font-weight: bold;
+}
         
     /* User Info */
 

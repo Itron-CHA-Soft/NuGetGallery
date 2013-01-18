@@ -17,6 +17,7 @@
         <div id="content-wrapper">
             <header class="main">
                 <div id="logo"><a href="@Url.Home()">NuGet Gallery</a></div>
+                <div id="siteName"><span>// @(DependencyResolver.Current.GetService<IConfiguration>().SiteName)</span></div>
                 @Html.Partial(MVC.Shared.Views.UserDisplay)
             </header>
             <nav class="main">
