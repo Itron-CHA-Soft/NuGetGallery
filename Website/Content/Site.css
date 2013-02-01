@@ -718,7 +718,7 @@ ul.dependencySet li {
 .stat { margin-bottom: 20px; }
 
 .stat-number {
-    font: 2.3em 'andale mono', 'lucida console', monospace;
+    font: 1.4em 'andale mono', 'lucida console', monospace;
     letter-spacing: 1px;
     line-height: 1.4em;
     margin: 0;
@@ -727,7 +727,7 @@ ul.dependencySet li {
 .stat-label {
     font-size: 1.25em;
     line-height: 1em;
-    margin: -7px 0 0 5px;
+    margin: -2px 0 0 0;
 }
      
     /* Side Column Navigation */
