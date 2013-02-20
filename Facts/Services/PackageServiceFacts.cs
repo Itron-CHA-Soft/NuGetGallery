@@ -480,24 +480,21 @@ namespace NuGetGallery
                 // Assert
                 packageRegistrationRepository.Verify();
             }
-            
+
             [Fact]
             public void WillSaveThePublisherWhenCreatingANewPackage()
             {
-              var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-              var service = CreateService(
-                  packageRegistrationRepo: packageRegistrationRepo,
-                  setup: mockPackageSvc =>
-                  {
-                    mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null);
-                  });
+              // Arrange
+              var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+              var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
               var nugetPackage = CreateNuGetPackage();
               var currentUser = new User();
 
-              var package = service.CreatePackage(
-                  nugetPackage.Object,
-                  currentUser);
+              // Act
+              var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
+              // Assert
               Assert.Equal(currentUser, package.Publisher);
             }
 

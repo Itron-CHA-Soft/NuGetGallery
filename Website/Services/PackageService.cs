@@ -39,7 +39,7 @@ namespace NuGetGallery
 
             var packageRegistration = CreateOrGetPackageRegistration(user, nugetPackage);
 
-            var package = CreatePackageFromNuGetPackage(currentUser, packageRegistration, nugetPackage);
+            var package = CreatePackageFromNuGetPackage(user, packageRegistration, nugetPackage);
             packageRegistration.Packages.Add(package);
             UpdateIsLatest(packageRegistration);
 
