@@ -6,30 +6,30 @@ namespace NuGetGallery
 {
     public partial class JsonApiController : JsonController
     {
-        private readonly IMessageService _messageSvc;
+        private readonly IMessageService _messageService;
         private readonly IEntityRepository<PackageOwnerRequest> _packageOwnerRequestRepository;
-        private readonly IPackageService _packageSvc;
-        private readonly IUserService _userSvc;
+        private readonly IPackageService _packageService;
+        private readonly IUserService _userService;
         private readonly GallerySetting _settings;
 
         public JsonApiController(
-            IPackageService packageSvc,
-            IUserService userSvc,
+            IPackageService packageService,
+            IUserService userService,
             IEntityRepository<PackageOwnerRequest> packageOwnerRequestRepository,
             IMessageService messageService,
             GallerySetting settings)
         {
-            _packageSvc = packageSvc;
-            _userSvc = userSvc;
+            _packageService = packageService;
+            _userService = userService;
             _packageOwnerRequestRepository = packageOwnerRequestRepository;
-            _messageSvc = messageService;
+            _messageService = messageService;
             _settings = settings;
         }
 
         [Authorize]
         public virtual object GetPackageOwners(string id, string version)
         {
-            var package = _packageSvc.FindPackageByIdAndVersion(id, version);
+            var package = _packageService.FindPackageByIdAndVersion(id, version);
             if (package == null)
             {
                 return new { message = "Package not found" };
@@ -56,7 +56,7 @@ namespace NuGetGallery
 
         public object AddPackageOwner(string id, string username)
         {
-            var package = _packageSvc.FindPackageRegistrationById(id);
+            var package = _packageService.FindPackageRegistrationById(id);
             if (package == null)
             {
                 return new { success = false, message = "Package not found" };
@@ -65,7 +65,7 @@ namespace NuGetGallery
             {
                 return new { success = false, message = "You are not the package owner." };
             }
-            var user = _userSvc.FindByUsername(username);
+            var user = _userService.FindByUsername(username);
             if (user == null)
             {
                 return new { success = false, message = "Owner not found" };
@@ -73,25 +73,25 @@ namespace NuGetGallery
 
             if (_settings.ConfirmOwnerPackage)
             {
-                var currentUser = _userSvc.FindByUsername(HttpContext.User.Identity.Name);
-                var ownerRequest = _packageSvc.CreatePackageOwnerRequest(package, currentUser, user);
+                var currentUser = _userService.FindByUsername(HttpContext.User.Identity.Name);
+                var ownerRequest = _packageService.CreatePackageOwnerRequest(package, currentUser, user);
 
                 var confirmationUrl = Url.ConfirmationUrl(
                     MVC.Packages.ConfirmOwner().AddRouteValue("id", package.Id), user.Username, ownerRequest.ConfirmationCode, Request.Url.Scheme);
-                _messageSvc.SendPackageOwnerRequest(currentUser, user, package, confirmationUrl);
+                _messageService.SendPackageOwnerRequest(currentUser, user, package, confirmationUrl);
 
                 return new { success = true, name = user.Username, pending = true };
             }
             else
             {
-                _packageSvc.AddPackageOwner(package, user);
+                _packageService.AddPackageOwner(package, user);
                 return new { success = true, name = user.Username, pending = false };
             }
         }
 
         public object RemovePackageOwner(string id, string username)
         {
-            var package = _packageSvc.FindPackageRegistrationById(id);
+            var package = _packageService.FindPackageRegistrationById(id);
             if (package == null)
             {
                 return new { success = false, message = "Package not found" };
@@ -100,13 +100,13 @@ namespace NuGetGallery
             {
                 return new { success = false, message = "You are not the package owner." };
             }
-            var user = _userSvc.FindByUsername(username);
+            var user = _userService.FindByUsername(username);
             if (user == null)
             {
                 return new { success = false, message = "Owner not found" };
             }
 
-            _packageSvc.RemovePackageOwner(package, user);
+            _packageService.RemovePackageOwner(package, user);
             return new { success = true };
         }
 

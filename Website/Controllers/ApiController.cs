@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 using System.Web.Mvc;
 using System.Web.UI;
 using NuGet;
@@ -11,30 +12,30 @@ namespace NuGetGallery
 {
     public partial class ApiController : AppController
     {
-        private readonly INuGetExeDownloaderService _nugetExeDownloaderSvc;
-        private readonly IPackageFileService _packageFileSvc;
-        private readonly IPackageService _packageSvc;
-        private readonly IUserService _userSvc;
+        private readonly INuGetExeDownloaderService _nugetExeDownloaderService;
+        private readonly IPackageFileService _packageFileService;
+        private readonly IPackageService _packageService;
+        private readonly IUserService _userService;
 
         public ApiController(
-            IPackageService packageSvc,
-            IPackageFileService packageFileSvc,
-            IUserService userSvc,
-            INuGetExeDownloaderService nugetExeDownloaderSvc)
+            IPackageService packageService,
+            IPackageFileService packageFileService,
+            IUserService userService,
+            INuGetExeDownloaderService nugetExeDownloaderService)
         {
-            _packageSvc = packageSvc;
-            _packageFileSvc = packageFileSvc;
-            _userSvc = userSvc;
-            _nugetExeDownloaderSvc = nugetExeDownloaderSvc;
+            _packageService = packageService;
+            _packageFileService = packageFileService;
+            _userService = userService;
+            _nugetExeDownloaderService = nugetExeDownloaderService;
         }
 
         [ActionName("GetPackageApi")]
         [HttpGet]
-        public virtual ActionResult GetPackage(string id, string version)
+        public virtual async Task<ActionResult> GetPackage(string id, string version)
         {
             // if the version is null, the user is asking for the latest version. Presumably they don't want includePrerelease release versions. 
             // The allow prerelease flag is ignored if both partialId and version are specified.
-            var package = _packageSvc.FindPackageByIdAndVersion(id, version, allowPrerelease: false);
+            var package = _packageService.FindPackageByIdAndVersion(id, version, allowPrerelease: false);
             
             if (package == null)
             {
@@ -42,10 +43,18 @@ namespace NuGetGallery
                     HttpStatusCode.NotFound, String.Format(CultureInfo.CurrentCulture, Strings.PackageWithIdAndVersionNotFound, id, version));
             }
 
-            _packageSvc.AddDownloadStatistics(
-                package,
-                Request.UserHostAddress,
-                Request.UserAgent);
+            try
+            {
+                _packageService.AddDownloadStatistics(
+                    package,
+                    Request.UserHostAddress,
+                    Request.UserAgent,
+                    Request.Headers["NuGet-Operation"]);
+            }
+            catch (ReadOnlyModeException)
+            {
+                // *gulp* Swallowed. It's OK not to log statistics in read only mode.
+            }
 
             if (!String.IsNullOrWhiteSpace(package.ExternalPackageUrl))
             {
@@ -53,16 +62,16 @@ namespace NuGetGallery
             }
             else
             {
-                return _packageFileSvc.CreateDownloadPackageActionResult(package);
+                return await _packageFileService.CreateDownloadPackageActionResultAsync(package);
             }
         }
 
         [ActionName("GetNuGetExeApi")]
         [HttpGet]
         [OutputCache(VaryByParam = "none", Location = OutputCacheLocation.ServerAndClient, Duration = 600)]
-        public virtual ActionResult GetNuGetExe()
+        public virtual Task<ActionResult> GetNuGetExe()
         {
-            return _nugetExeDownloaderSvc.CreateNuGetExeDownloadActionResult();
+            return _nugetExeDownloaderService.CreateNuGetExeDownloadActionResultAsync();
         }
 
         [ActionName("VerifyPackageKeyApi")]
@@ -76,7 +85,7 @@ namespace NuGetGallery
                     HttpStatusCode.BadRequest, String.Format(CultureInfo.CurrentCulture, Strings.InvalidApiKey, apiKey));
             }
 
-            var user = _userSvc.FindByApiKey(parsedApiKey);
+            var user = _userService.FindByApiKey(parsedApiKey);
             if (user == null)
             {
                 return new HttpStatusCodeWithBodyResult(
@@ -86,7 +95,7 @@ namespace NuGetGallery
             if (!String.IsNullOrEmpty(id))
             {
                 // If the partialId is present, then verify that the user has permission to push for the specific Id \ version combination.
-                var package = _packageSvc.FindPackageByIdAndVersion(id, version);
+                var package = _packageService.FindPackageByIdAndVersion(id, version);
                 if (package == null)
                 {
                     return new HttpStatusCodeWithBodyResult(
@@ -105,19 +114,19 @@ namespace NuGetGallery
 
         [ActionName("PushPackageApi")]
         [HttpPut]
-        public virtual ActionResult CreatePackagePut(string apiKey)
+        public virtual Task<ActionResult> CreatePackagePut(string apiKey)
         {
             return CreatePackageInternal(apiKey);
         }
 
         [ActionName("PushPackageApi")]
         [HttpPost]
-        public virtual ActionResult CreatePackagePost(string apiKey)
+        public virtual Task<ActionResult> CreatePackagePost(string apiKey)
         {
             return CreatePackageInternal(apiKey);
         }
 
-        private ActionResult CreatePackageInternal(string apiKey)
+        private async Task<ActionResult> CreatePackageInternal(string apiKey)
         {
             Guid parsedApiKey;
             if (!Guid.TryParse(apiKey, out parsedApiKey))
@@ -126,7 +135,7 @@ namespace NuGetGallery
                     HttpStatusCode.BadRequest, String.Format(CultureInfo.CurrentCulture, Strings.InvalidApiKey, apiKey));
             }
 
-            var user = _userSvc.FindByApiKey(parsedApiKey);
+            var user = _userService.FindByApiKey(parsedApiKey);
             if (user == null)
             {
                 return new HttpStatusCodeWithBodyResult(
@@ -136,7 +145,7 @@ namespace NuGetGallery
             var packageToPush = ReadPackageFromRequest();
 
             // Ensure that the user can push packages for this partialId.
-            var packageRegistration = _packageSvc.FindPackageRegistrationById(packageToPush.Id);
+            var packageRegistration = _packageService.FindPackageRegistrationById(packageToPush.Id);
             if (packageRegistration != null)
             {
                 if (!packageRegistration.IsOwner(user))
@@ -156,11 +165,16 @@ namespace NuGetGallery
                 }
             }
 
-            var package = _packageSvc.CreatePackage(packageToPush, user);
+            var package = _packageService.CreatePackage(packageToPush, user, commitChanges: true);
+            using (Stream stream = packageToPush.GetStream())
+            {
+                await _packageFileService.SavePackageFileAsync(package, stream);
+            }
+
             if (packageToPush.Id.Equals(Constants.NuGetCommandLinePackageId, StringComparison.OrdinalIgnoreCase) && package.IsLatestStable)
             {
                 // If we're pushing a new stable version of NuGet.CommandLine, update the extracted executable.
-                _nugetExeDownloaderSvc.UpdateExecutable(packageToPush);
+                await _nugetExeDownloaderService.UpdateExecutableAsync(packageToPush);
             }
 
             return new HttpStatusCodeResult(201);
@@ -177,14 +191,14 @@ namespace NuGetGallery
                     HttpStatusCode.BadRequest, String.Format(CultureInfo.CurrentCulture, Strings.InvalidApiKey, apiKey));
             }
 
-            var user = _userSvc.FindByApiKey(parsedApiKey);
+            var user = _userService.FindByApiKey(parsedApiKey);
             if (user == null)
             {
                 return new HttpStatusCodeWithBodyResult(
                     HttpStatusCode.Forbidden, String.Format(CultureInfo.CurrentCulture, Strings.ApiKeyNotAuthorized, "delete"));
             }
 
-            var package = _packageSvc.FindPackageByIdAndVersion(id, version);
+            var package = _packageService.FindPackageByIdAndVersion(id, version);
             if (package == null)
             {
                 return new HttpStatusCodeWithBodyResult(
@@ -197,7 +211,7 @@ namespace NuGetGallery
                     HttpStatusCode.Forbidden, String.Format(CultureInfo.CurrentCulture, Strings.ApiKeyNotAuthorized, "delete"));
             }
 
-            _packageSvc.MarkPackageUnlisted(package);
+            _packageService.MarkPackageUnlisted(package);
             return new EmptyResult();
         }
 
@@ -212,14 +226,14 @@ namespace NuGetGallery
                     HttpStatusCode.BadRequest, String.Format(CultureInfo.CurrentCulture, Strings.InvalidApiKey, apiKey));
             }
 
-            var user = _userSvc.FindByApiKey(parsedApiKey);
+            var user = _userService.FindByApiKey(parsedApiKey);
             if (user == null)
             {
                 return new HttpStatusCodeWithBodyResult(
                     HttpStatusCode.Forbidden, String.Format(CultureInfo.CurrentCulture, Strings.ApiKeyNotAuthorized, "publish"));
             }
 
-            var package = _packageSvc.FindPackageByIdAndVersion(id, version);
+            var package = _packageService.FindPackageByIdAndVersion(id, version);
             if (package == null)
             {
                 return new HttpStatusCodeWithBodyResult(
@@ -232,17 +246,26 @@ namespace NuGetGallery
                     HttpStatusCode.Forbidden, String.Format(CultureInfo.CurrentCulture, Strings.ApiKeyNotAuthorized, "publish"));
             }
 
-            _packageSvc.MarkPackageListed(package);
+            _packageService.MarkPackageListed(package);
             return new EmptyResult();
         }
 
         protected override void OnException(ExceptionContext filterContext)
         {
-            filterContext.ExceptionHandled = true;
             var exception = filterContext.Exception;
-            var request = filterContext.HttpContext.Request;
-            filterContext.Result = new HttpStatusCodeWithBodyResult(
-                HttpStatusCode.InternalServerError, exception.Message, request.IsLocal ? exception.StackTrace : exception.Message);
+            if (exception is ReadOnlyModeException)
+            {
+                filterContext.ExceptionHandled = true;
+                filterContext.Result = new HttpStatusCodeWithBodyResult(
+                    HttpStatusCode.ServiceUnavailable, exception.Message);
+            }
+            else
+            {
+                var request = filterContext.HttpContext.Request;
+                filterContext.ExceptionHandled = true;
+                filterContext.Result = new HttpStatusCodeWithBodyResult(
+                    HttpStatusCode.InternalServerError, exception.Message, request.IsLocal ? exception.StackTrace : exception.Message);
+            }
         }
 
         protected internal virtual IPackage ReadPackageFromRequest()
@@ -263,22 +286,26 @@ namespace NuGetGallery
 
         [ActionName("PackageIDs")]
         [HttpGet]
-        public virtual ActionResult GetPackageIds(
-            string partialId,
-            bool? includePrerelease)
+        public virtual ActionResult GetPackageIds(string partialId, bool? includePrerelease)
         {
-            var qry = GetService<IPackageIdsQuery>();
-            return new JsonNetResult(qry.Execute(partialId, includePrerelease).ToArray());
+            var query = GetService<IPackageIdsQuery>();
+            return new JsonResult
+                {
+                    Data = (query.Execute(partialId, includePrerelease).ToArray()),
+                    JsonRequestBehavior = JsonRequestBehavior.AllowGet
+                };
         }
 
         [ActionName("PackageVersions")]
         [HttpGet]
-        public virtual ActionResult GetPackageVersions(
-            string id,
-            bool? includePrerelease)
+        public virtual ActionResult GetPackageVersions(string id, bool? includePrerelease)
         {
-            var qry = GetService<IPackageVersionsQuery>();
-            return new JsonNetResult(qry.Execute(id, includePrerelease).ToArray());
+            var query = GetService<IPackageVersionsQuery>();
+            return new JsonResult
+                {
+                    Data = query.Execute(id, includePrerelease).ToArray(),
+                    JsonRequestBehavior = JsonRequestBehavior.AllowGet
+                };
         }
     }
 }

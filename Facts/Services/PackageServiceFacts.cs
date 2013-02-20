@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
+using System.Threading.Tasks;
 using Moq;
 using NuGet;
 using Xunit;
@@ -76,46 +77,43 @@ namespace NuGetGallery
         }
 
         private static IPackageService CreateService(
-            Mock<ICryptographyService> cryptoSvc = null,
-            Mock<IEntityRepository<PackageRegistration>> packageRegistrationRepo = null,
-            Mock<IEntityRepository<Package>> packageRepo = null,
-            Mock<IEntityRepository<PackageStatistics>> packageStatsRepo = null,
-            Mock<IPackageFileService> packageFileSvc = null,
-            Mock<IEntityRepository<PackageOwnerRequest>> packageOwnerRequestRepo = null,
-            Mock<IIndexingService> indexingSvc = null,
+            Mock<ICryptographyService> cryptoService = null, 
+            Mock<IEntityRepository<PackageRegistration>> packageRegistrationRepository = null, 
+            Mock<IEntityRepository<Package>> packageRepository = null, 
+            Mock<IEntityRepository<PackageStatistics>> packageStatsRepo = null, 
+            Mock<IEntityRepository<PackageOwnerRequest>> packageOwnerRequestRepo = null, 
+            Mock<IIndexingService> indexingService = null, 
             Action<Mock<PackageService>> setup = null)
         {
-            if (cryptoSvc == null)
+            if (cryptoService == null)
             {
-                cryptoSvc = new Mock<ICryptographyService>();
-                cryptoSvc.Setup(x => x.GenerateHash(new byte[] { 0, 0, 1, 0, 1, 0, 1, 0 }, Constants.Sha512HashAlgorithmId))
+                cryptoService = new Mock<ICryptographyService>();
+                cryptoService.Setup(x => x.GenerateHash(new byte[] { 0, 0, 1, 0, 1, 0, 1, 0 }, Constants.Sha512HashAlgorithmId))
                     .Returns("theHash");
             }
 
-            packageRegistrationRepo = packageRegistrationRepo ?? new Mock<IEntityRepository<PackageRegistration>>();
-            packageRepo = packageRepo ?? new Mock<IEntityRepository<Package>>();
-            packageFileSvc = packageFileSvc ?? new Mock<IPackageFileService>();
+            packageRegistrationRepository = packageRegistrationRepository ?? new Mock<IEntityRepository<PackageRegistration>>();
+            packageRepository = packageRepository ?? new Mock<IEntityRepository<Package>>();
             packageStatsRepo = packageStatsRepo ?? new Mock<IEntityRepository<PackageStatistics>>();
             packageOwnerRequestRepo = packageOwnerRequestRepo ?? new Mock<IEntityRepository<PackageOwnerRequest>>();
-            indexingSvc = indexingSvc ?? new Mock<IIndexingService>();
+            indexingService = indexingService ?? new Mock<IIndexingService>();
 
-            var packageSvc = new Mock<PackageService>(
-                cryptoSvc.Object,
-                packageRegistrationRepo.Object,
-                packageRepo.Object,
+            var packageService = new Mock<PackageService>(
+                cryptoService.Object,
+                packageRegistrationRepository.Object,
+                packageRepository.Object,
                 packageStatsRepo.Object,
-                packageFileSvc.Object,
                 packageOwnerRequestRepo.Object,
-                indexingSvc.Object);
+                indexingService.Object);
 
-            packageSvc.CallBase = true;
+            packageService.CallBase = true;
 
             if (setup != null)
             {
-                setup(packageSvc);
+                setup(packageService);
             }
 
-            return packageSvc.Object;
+            return packageService.Object;
         }
 
         public class TheAddDownloadStatisticsMethod
@@ -127,7 +125,7 @@ namespace NuGetGallery
                 var service = CreateService(packageStatsRepo: packageStatsRepo);
                 var package = new Package();
 
-                service.AddDownloadStatistics(package, "::1", "Unit Test");
+                service.AddDownloadStatistics(package, "::1", "Unit Test", null);
 
                 packageStatsRepo.Verify(x => x.InsertOnCommit(It.Is<PackageStatistics>(p => p.Package == package && p.UserAgent == "Unit Test")));
                 packageStatsRepo.Verify(x => x.CommitChanges());
@@ -143,7 +141,7 @@ namespace NuGetGallery
                 var service = CreateService(packageStatsRepo: packageStatsRepo);
                 var package = new Package();
 
-                service.AddDownloadStatistics(package, "::1", "Unit Test");
+                service.AddDownloadStatistics(package, "::1", "Unit Test", null);
 
                 packageStatsRepo.Verify(x => x.InsertOnCommit(It.Is<PackageStatistics>(p => p.IPAddress == "unknown")));
                 packageStatsRepo.Verify(x => x.CommitChanges());
@@ -156,7 +154,7 @@ namespace NuGetGallery
                 var service = CreateService(packageStatsRepo: packageStatsRepo);
                 var package = new Package();
 
-                service.AddDownloadStatistics(package, null, null);
+                service.AddDownloadStatistics(package, null, null, null);
 
                 packageStatsRepo.Verify(x => x.InsertOnCommit(It.Is<PackageStatistics>(p => p.Package == package)));
                 packageStatsRepo.Verify(x => x.CommitChanges());
@@ -170,14 +168,14 @@ namespace NuGetGallery
             {
                 var package = new PackageRegistration { Key = 2, Id = "pkg42" };
                 var pendingOwner = new User { Key = 100, Username = "teamawesome" };
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                packageRepo.Setup(r => r.CommitChanges()).Verifiable();
-                var service = CreateService(packageRepo: packageRepo);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                packageRepository.Setup(r => r.CommitChanges()).Verifiable();
+                var service = CreateService(packageRepository: packageRepository);
 
                 service.AddPackageOwner(package, pendingOwner);
 
                 Assert.Contains(pendingOwner, package.Owners);
-                packageRepo.VerifyAll();
+                packageRepository.VerifyAll();
             }
 
             [Fact]
@@ -210,8 +208,8 @@ namespace NuGetGallery
             {
                 var package = new PackageRegistration { Key = 2, Id = "pkg42" };
                 var pendingOwner = new User { Key = 100, Username = "teamawesome" };
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                packageRepo.Setup(r => r.CommitChanges()).Verifiable();
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                packageRepository.Setup(r => r.CommitChanges()).Verifiable();
                 var repository = new Mock<IEntityRepository<PackageOwnerRequest>>();
                 repository.Setup(r => r.GetAll()).Returns(
                     new[]
@@ -219,13 +217,13 @@ namespace NuGetGallery
                             new PackageOwnerRequest { PackageRegistrationKey = 1, NewOwnerKey = 100, ConfirmationCode = "super-secret-token" },
                             new PackageOwnerRequest { PackageRegistrationKey = 2, NewOwnerKey = 100, ConfirmationCode = "secret-token" }
                         }.AsQueryable());
-                var service = CreateService(packageRepo: packageRepo, packageOwnerRequestRepo: repository);
+                var service = CreateService(packageRepository: packageRepository, packageOwnerRequestRepo: repository);
 
                 var result = service.ConfirmPackageOwner(package, pendingOwner, "secret-token");
 
                 Assert.True(result);
                 Assert.Contains(pendingOwner, package.Owners);
-                packageRepo.VerifyAll();
+                packageRepository.VerifyAll();
             }
 
             [Fact]
@@ -269,8 +267,8 @@ namespace NuGetGallery
             {
                 var package = new PackageRegistration { Key = 2, Id = "pkg42" };
                 var pendingOwner = new User { Key = 100, Username = "teamawesome" };
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                packageRepo.Setup(r => r.CommitChanges()).Throws(new InvalidOperationException());
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                packageRepository.Setup(r => r.CommitChanges()).Throws(new InvalidOperationException());
                 var repository = new Mock<IEntityRepository<PackageOwnerRequest>>();
                 repository.Setup(r => r.GetAll()).Returns(
                     new[]
@@ -278,7 +276,7 @@ namespace NuGetGallery
                             new PackageOwnerRequest { PackageRegistrationKey = 1, NewOwnerKey = 100, ConfirmationCode = "super-secret-token" },
                             new PackageOwnerRequest { PackageRegistrationKey = 2, NewOwnerKey = 100, ConfirmationCode = "wrong-token" }
                         }.AsQueryable());
-                var service = CreateService(packageRepo: packageRepo, packageOwnerRequestRepo: repository);
+                var service = CreateService(packageRepository: packageRepository, packageOwnerRequestRepo: repository);
 
                 var result = service.ConfirmPackageOwner(package, pendingOwner, "secret-token");
 
@@ -303,54 +301,45 @@ namespace NuGetGallery
             [Fact]
             public void WillCreateANewPackageRegistrationUsingTheNugetPackIdWhenOneDoesNotAlreadyExist()
             {
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup: mockPackageService =>
+                    {
+                        mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null);
+                    });
+                
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                service.CreatePackage(nugetPackage.Object, currentUser);
 
-                packageRegistrationRepo.Verify(x => x.InsertOnCommit(It.Is<PackageRegistration>(pr => pr.Id == "theId")));
-                packageRegistrationRepo.Verify(x => x.CommitChanges());
+                packageRegistrationRepository.Verify(x => x.InsertOnCommit(It.Is<PackageRegistration>(pr => pr.Id == "theId")));
+                packageRegistrationRepository.Verify(x => x.CommitChanges());
             }
 
             [Fact]
             public void WillMakeTheCurrentUserTheOwnerWhenCreatingANewPackageRegistration()
             {
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                service.CreatePackage(nugetPackage.Object, currentUser);
 
-                packageRegistrationRepo.Verify(x => x.InsertOnCommit(It.Is<PackageRegistration>(pr => pr.Owners.Contains(currentUser))));
+                packageRegistrationRepository.Verify(x => x.InsertOnCommit(It.Is<PackageRegistration>(pr => pr.Owners.Contains(currentUser))));
             }
 
             [Fact]
             public void WillReadThePropertiesFromTheNuGetPackageWhenCreatingANewPackage()
             {
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 // Yes, I know this is a lot of asserts. Yes, I know I broke the golden, one assert per test rule. 
                 // That said, it's still asserting one "thing": that the package data was read. 
@@ -385,17 +374,13 @@ namespace NuGetGallery
             [Fact]
             public void WillReadTheLanguagePropertyFromThePackage()
             {
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage(p => p.Setup(s => s.Language).Returns("fr"));
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 // Assert
                 Assert.Equal("fr", package.Language);
@@ -405,24 +390,95 @@ namespace NuGetGallery
             public void WillReadPrereleaseFlagFromNuGetPackage()
             {
                 // Arrange
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>(MockBehavior.Strict);
-                packageRegistrationRepo.Setup(r => r.InsertOnCommit(It.IsAny<PackageRegistration>())).Returns(1).Verifiable();
-                packageRegistrationRepo.Setup(r => r.CommitChanges()).Verifiable();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>(MockBehavior.Strict);
+                packageRegistrationRepository.Setup(r => r.InsertOnCommit(It.IsAny<PackageRegistration>())).Returns(1).Verifiable();
+                packageRegistrationRepository.Setup(r => r.CommitChanges()).Verifiable();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage(p => p.Setup(x => x.Version).Returns(new SemanticVersion("2.14.0-a")));
                 var currentUser = new User();
 
                 // Act
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 // Assert
                 Assert.True(package.IsPrerelease);
-                packageRegistrationRepo.Verify();
+                packageRegistrationRepository.Verify();
+            }
+
+            [Fact]
+            public void DoNotCommitChangesIfCommitChangesIsFalse()
+            {
+                // Arrange
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>(MockBehavior.Strict);
+                packageRegistrationRepository.Setup(r => r.InsertOnCommit(It.IsAny<PackageRegistration>())).Returns(1).Verifiable();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var nugetPackage = CreateNuGetPackage(p => p.Setup(x => x.Version).Returns(new SemanticVersion("2.14.0-a")));
+                var currentUser = new User();
+
+                // Act
+                var package = service.CreatePackage(nugetPackage.Object, currentUser, commitChanges: false);
+
+                // Assert
+                packageRegistrationRepository.Verify();
+            }
+
+            [Fact]
+            public void DoNotUpdateIndexIfCommitChangesIsFalse()
+            {
+                // Arrange
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>(MockBehavior.Strict);
+                packageRegistrationRepository.Setup(r => r.InsertOnCommit(It.IsAny<PackageRegistration>())).Returns(1).Verifiable();
+                var indexingService = new Mock<IIndexingService>(MockBehavior.Strict);
+                var service = CreateService(indexingService: indexingService, packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+
+                var nugetPackage = CreateNuGetPackage(p => p.Setup(x => x.Version).Returns(new SemanticVersion("2.14.0-a")));
+                var currentUser = new User();
+
+                // Act
+                var package = service.CreatePackage(nugetPackage.Object, currentUser, commitChanges: false);
+            }
+
+            [Fact]
+            public void UpdateIndexIfCommitChangesIsTrue()
+            {
+                // Arrange
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>(MockBehavior.Strict);
+                packageRegistrationRepository.Setup(r => r.InsertOnCommit(It.IsAny<PackageRegistration>())).Returns(1).Verifiable();
+                packageRegistrationRepository.Setup(r => r.CommitChanges()).Verifiable();
+                var indexingService = new Mock<IIndexingService>(MockBehavior.Strict);
+                indexingService.Setup(s => s.UpdateIndex()).Verifiable();
+                var service = CreateService(indexingService: indexingService, packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var nugetPackage = CreateNuGetPackage(p => p.Setup(x => x.Version).Returns(new SemanticVersion("2.14.0-a")));
+                var currentUser = new User();
+
+                // Act
+                var package = service.CreatePackage(nugetPackage.Object, currentUser, commitChanges: true);
+
+                // Assert
+                indexingService.Verify();
+            }
+
+            [Fact]
+            public void CommitChangesIfCommitChangesIsTrue()
+            {
+                // Arrange
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>(MockBehavior.Strict);
+                packageRegistrationRepository.Setup(r => r.InsertOnCommit(It.IsAny<PackageRegistration>())).Returns(1).Verifiable();
+                packageRegistrationRepository.Setup(r => r.CommitChanges()).Verifiable();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var nugetPackage = CreateNuGetPackage(p => p.Setup(x => x.Version).Returns(new SemanticVersion("2.14.0-a")));
+                var currentUser = new User();
+
+                // Act
+                var package = service.CreatePackage(nugetPackage.Object, currentUser, commitChanges: true);
+
+                // Assert
+                packageRegistrationRepository.Verify();
             }
             
             [Fact]
@@ -448,15 +504,12 @@ namespace NuGetGallery
             [Fact]
             public void WillGenerateAHashForTheCreatedPackage()
             {
-                var service = CreateService(
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var service = CreateService(setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 Assert.Equal("theHash", package.Hash);
                 Assert.Equal(Constants.Sha512HashAlgorithmId, package.HashAlgorithm);
@@ -465,15 +518,12 @@ namespace NuGetGallery
             [Fact]
             public void WillNotCreateThePackageInAnUnpublishedState()
             {
-                var service = CreateService(
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var service = CreateService(setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 Assert.NotNull(package.Published);
             }
@@ -481,15 +531,12 @@ namespace NuGetGallery
             [Fact]
             public void WillSetTheNewPackagesCreatedAndLastUpdatedTimes()
             {
-                var service = CreateService(
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var service = CreateService(setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 Assert.NotEqual(DateTime.MinValue, package.Created);
                 Assert.NotEqual(DateTime.MinValue, package.LastUpdated);
@@ -498,39 +545,29 @@ namespace NuGetGallery
             [Fact]
             public void WillSaveThePackageFileAndSetThePackageFileSize()
             {
-                var packageFileSvc = new Mock<IPackageFileService>();
-                var service = CreateService(
-                    packageFileSvc: packageFileSvc,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var service = CreateService(setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
-                packageFileSvc.Verify(x => x.SavePackageFile(package, nugetPackage.Object.GetStream()));
                 Assert.Equal(8, package.PackageFileSize);
             }
 
             [Fact]
             private void WillSaveTheCreatedPackageWhenANewPackageRegistrationIsCreated()
             {
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null); });
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
-                packageRegistrationRepo.Verify(x => x.InsertOnCommit(It.Is<PackageRegistration>(pr => pr.Packages.ElementAt(0) == package)));
-                packageRegistrationRepo.Verify(x => x.CommitChanges());
+                packageRegistrationRepository.Verify(x => x.InsertOnCommit(It.Is<PackageRegistration>(pr => pr.Packages.ElementAt(0) == package)));
+                packageRegistrationRepository.Verify(x => x.CommitChanges());
             }
 
             [Fact]
@@ -542,19 +579,15 @@ namespace NuGetGallery
                         Id = "theId",
                         Owners = new HashSet<User> { currentUser },
                     };
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns(packageRegistration); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns(packageRegistration); });
                 var nugetPackage = CreateNuGetPackage();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 Assert.Same(packageRegistration.Packages.ElementAt(0), package);
-                packageRegistrationRepo.Verify(x => x.CommitChanges());
+                packageRegistrationRepository.Verify(x => x.CommitChanges());
             }
 
             [Fact]
@@ -566,14 +599,12 @@ namespace NuGetGallery
                         Id = "theId",
                         Owners = new HashSet<User>()
                     };
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns(packageRegistration); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns(packageRegistration); });
                 var nugetPackage = CreateNuGetPackage();
 
-                var ex = Assert.Throws<EntityException>(() => service.CreatePackage(nugetPackage.Object, currentUser));
+                var ex = Assert.Throws<EntityException>(() => service.CreatePackage(nugetPackage.Object, currentUser, true));
 
                 Assert.Equal(String.Format(Strings.PackageIdNotAvailable, "theId"), ex.Message);
             }
@@ -808,13 +839,11 @@ namespace NuGetGallery
             [Fact]
             private void WillSaveSupportedFrameworks()
             {
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup: mockPackageSvc =>
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup: mockPackageService =>
                                {
-                                   mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null);
-                                   mockPackageSvc.Setup(p => p.GetSupportedFrameworks(It.IsAny<IPackage>())).Returns(
+                                   mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null);
+                                   mockPackageService.Setup(p => p.GetSupportedFrameworks(It.IsAny<IPackage>())).Returns(
                                        new[]
                                            {
                                                VersionUtility.ParseFrameworkName("net40"),
@@ -824,9 +853,7 @@ namespace NuGetGallery
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 Assert.Equal("net40", package.SupportedFrameworks.First().TargetFramework);
                 Assert.Equal("net35", package.SupportedFrameworks.ElementAt(1).TargetFramework);
@@ -835,13 +862,11 @@ namespace NuGetGallery
             [Fact]
             private void WillNotSaveAnySuuportedFrameworksWhenThereIsANullTargetFramework()
             {
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    setup: mockPackageSvc =>
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, setup: mockPackageService =>
                                {
-                                   mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null);
-                                   mockPackageSvc.Setup(p => p.GetSupportedFrameworks(It.IsAny<IPackage>())).Returns(
+                                   mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Returns((PackageRegistration)null);
+                                   mockPackageService.Setup(p => p.GetSupportedFrameworks(It.IsAny<IPackage>())).Returns(
                                        new[]
                                            {
                                                null,
@@ -851,9 +876,7 @@ namespace NuGetGallery
                 var nugetPackage = CreateNuGetPackage();
                 var currentUser = new User();
 
-                var package = service.CreatePackage(
-                    nugetPackage.Object,
-                    currentUser);
+                var package = service.CreatePackage(nugetPackage.Object, currentUser);
 
                 Assert.Empty(package.SupportedFrameworks);
             }
@@ -906,36 +929,54 @@ namespace NuGetGallery
         public class TheDeletePackageMethod
         {
             [Fact]
+            public void DoNotCommitIfCommitChangesIsFalse()
+            {
+                // Arrange
+                var packageRegistration = new PackageRegistration();
+                var package = new Package { PackageRegistration = packageRegistration };
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockService => { mockService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+
+                // Act
+                service.DeletePackage("hot", "1.0", commitChanges: false);
+
+                // Assert
+                packageRepository.Verify(r => r.CommitChanges(), Times.Never());
+            }
+
+            [Fact]
+            public void CommitIfCommitChangesIsTrue()
+            {
+                // Arrange
+                var packageRegistration = new PackageRegistration();
+                var package = new Package { PackageRegistration = packageRegistration };
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockService => { mockService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+
+                // Act
+                service.DeletePackage("hot", "1.0", commitChanges: true);
+
+                // Assert
+                packageRepository.Verify(r => r.CommitChanges(), Times.Once());
+            }
+
+            [Fact]
             public void WillDeleteThePackage()
             {
                 var packageRegistration = new PackageRegistration();
                 var package = new Package { PackageRegistration = packageRegistration };
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(
-                    packageRepo: packageRepo,
-                    setup:
-                        mockSvc => { mockSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockService => { mockService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
                 service.DeletePackage("theId", "1.0.42");
 
-                packageRepo.Verify(x => x.DeleteOnCommit(package));
-                packageRepo.Verify(x => x.CommitChanges());
-            }
-
-            [Fact]
-            public void WillDeleteThePackageFile()
-            {
-                var packageRegistration = new PackageRegistration();
-                var package = new Package { PackageRegistration = packageRegistration };
-                var packageFileSvc = new Mock<IPackageFileService>();
-                var service = CreateService(
-                    packageFileSvc: packageFileSvc,
-                    setup:
-                        mockSvc => { mockSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
-
-                service.DeletePackage("theId", "1.0.42");
-
-                packageFileSvc.Verify(x => x.DeletePackageFile("theId", "1.0.42"));
+                packageRepository.Verify(x => x.DeleteOnCommit(package));
+                packageRepository.Verify(x => x.CommitChanges());
             }
 
             [Fact]
@@ -944,19 +985,16 @@ namespace NuGetGallery
                 var packageRegistration = new PackageRegistration();
                 var package = new Package { PackageRegistration = packageRegistration, Version = "1.0" };
                 packageRegistration.Packages.Add(package);
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var packageRepo = new Mock<IEntityRepository<Package>>(MockBehavior.Strict);
-                packageRepo.Setup(r => r.DeleteOnCommit(package)).Callback(() => { packageRegistration.Packages.Remove(package); });
-                packageRepo.Setup(r => r.CommitChanges()).Verifiable();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    packageRepo: packageRepo,
-                    setup:
-                        mockSvc => { mockSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var packageRepository = new Mock<IEntityRepository<Package>>(MockBehavior.Strict);
+                packageRepository.Setup(r => r.DeleteOnCommit(package)).Callback(() => { packageRegistration.Packages.Remove(package); });
+                packageRepository.Setup(r => r.CommitChanges()).Verifiable();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, packageRepository: packageRepository, setup:
+                        mockService => { mockService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
                 service.DeletePackage("theId", "1.0.42");
 
-                packageRegistrationRepo.Verify(x => x.DeleteOnCommit(packageRegistration));
+                packageRegistrationRepository.Verify(x => x.DeleteOnCommit(packageRegistration));
             }
 
             [Fact]
@@ -966,19 +1004,16 @@ namespace NuGetGallery
                 var package = new Package { PackageRegistration = packageRegistration, Version = "1.0" };
                 packageRegistration.Packages.Add(package);
                 packageRegistration.Packages.Add(new Package { Version = "0.9" });
-                var packageRegistrationRepo = new Mock<IEntityRepository<PackageRegistration>>();
-                var packageRepo = new Mock<IEntityRepository<Package>>(MockBehavior.Strict);
-                packageRepo.Setup(r => r.DeleteOnCommit(package)).Callback(() => { packageRegistration.Packages.Remove(package); });
-                packageRepo.Setup(r => r.CommitChanges()).Verifiable();
-                var service = CreateService(
-                    packageRegistrationRepo: packageRegistrationRepo,
-                    packageRepo: packageRepo,
-                    setup:
-                        mockSvc => { mockSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRegistrationRepository = new Mock<IEntityRepository<PackageRegistration>>();
+                var packageRepository = new Mock<IEntityRepository<Package>>(MockBehavior.Strict);
+                packageRepository.Setup(r => r.DeleteOnCommit(package)).Callback(() => { packageRegistration.Packages.Remove(package); });
+                packageRepository.Setup(r => r.CommitChanges()).Verifiable();
+                var service = CreateService(packageRegistrationRepository: packageRegistrationRepository, packageRepository: packageRepository, setup:
+                        mockService => { mockService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
                 service.DeletePackage("theId", "1.0.42");
 
-                packageRegistrationRepo.Verify(x => x.DeleteOnCommit(packageRegistration), Times.Never());
+                packageRegistrationRepository.Verify(x => x.DeleteOnCommit(packageRegistration), Times.Never());
             }
 
             [Fact]
@@ -993,13 +1028,11 @@ namespace NuGetGallery
                 packages.Add(package10A);
                 var package09 = new Package { PackageRegistration = packageRegistration, Version = "0.9.0" };
                 packages.Add(package09);
-                var packageRepo = new Mock<IEntityRepository<Package>>(MockBehavior.Strict);
-                packageRepo.Setup(r => r.DeleteOnCommit(package100)).Callback(() => { packages.Remove(package100); }).Verifiable();
-                packageRepo.Setup(r => r.CommitChanges()).Verifiable();
-                var service = CreateService(
-                    packageRepo: packageRepo,
-                    setup:
-                        mockSvc => { mockSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package100); });
+                var packageRepository = new Mock<IEntityRepository<Package>>(MockBehavior.Strict);
+                packageRepository.Setup(r => r.DeleteOnCommit(package100)).Callback(() => { packages.Remove(package100); }).Verifiable();
+                packageRepository.Setup(r => r.CommitChanges()).Verifiable();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockService => { mockService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package100); });
 
                 // Act
                 service.DeletePackage("A", "1.0.0");
@@ -1009,15 +1042,14 @@ namespace NuGetGallery
                 Assert.False(package10A.IsLatestStable);
                 Assert.False(package09.IsLatest);
                 Assert.True(package09.IsLatestStable);
-                packageRepo.Verify();
+                packageRepository.Verify();
             }
 
             [Fact]
             public void WillThrowIfThePackageDoesNotExist()
             {
-                var service = CreateService(
-                    setup:
-                        mockSvc => { mockSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), false)).Returns((Package)null); });
+                var service = CreateService(setup:
+                        mockService => { mockService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), false)).Returns((Package)null); });
 
                 var ex = Assert.Throws<EntityException>(() => service.DeletePackage("theId", "1.0.42"));
 
@@ -1037,9 +1069,9 @@ namespace NuGetGallery
                         new Package
                             { Version = "2.0", PackageRegistration = packageRegistration, IsLatestStable = true, IsLatest = true }
                     }.AsQueryable();
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                packageRepo.Setup(r => r.GetAll()).Returns(packages);
-                var service = CreateService(packageRepo: packageRepo);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                packageRepository.Setup(r => r.GetAll()).Returns(packages);
+                var service = CreateService(packageRepository: packageRepository);
 
                 var package = service.FindPackageByIdAndVersion("theId", null);
 
@@ -1049,13 +1081,12 @@ namespace NuGetGallery
             [Fact]
             public void WillGetSpecifiedVersionWhenTheVersionArgumentIsNotNull()
             {
-                var service = CreateService(
-                    setup:
-                        mockPackageSvc =>
-                            {
-                                mockPackageSvc.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Throws(
-                                    new Exception("This should not be called when the version is specified."));
-                            });
+                var service = CreateService(setup:
+                        mockPackageService =>
+                        {
+                            mockPackageService.Setup(x => x.FindPackageRegistrationById(It.IsAny<string>())).Throws(
+                                new Exception("This should not be called when the version is specified."));
+                        });
 
                 Assert.DoesNotThrow(() => service.FindPackageByIdAndVersion("theId", "1.0.42"));
 
@@ -1085,7 +1116,7 @@ namespace NuGetGallery
 
                 repository.Setup(repo => repo.GetAll())
                     .Returns(new[] { package, packageA }.AsQueryable());
-                var service = CreateService(packageRepo: repository);
+                var service = CreateService(packageRepository: repository);
 
                 // Act
                 var result = service.FindPackageByIdAndVersion("Foo", version: null);
@@ -1105,7 +1136,7 @@ namespace NuGetGallery
 
                 repository.Setup(repo => repo.GetAll())
                     .Returns(new[] { package, packageA }.AsQueryable());
-                var service = CreateService(packageRepo: repository);
+                var service = CreateService(packageRepository: repository);
 
                 // Act
                 var result = service.FindPackageByIdAndVersion("Foo", null);
@@ -1124,7 +1155,7 @@ namespace NuGetGallery
 
                 repository.Setup(repo => repo.GetAll())
                     .Returns(new[] { package, packageA }.AsQueryable());
-                var service = CreateService(packageRepo: repository);
+                var service = CreateService(packageRepository: repository);
 
                 // Act
                 var result = service.FindPackageByIdAndVersion("Foo", null);
@@ -1141,12 +1172,44 @@ namespace NuGetGallery
             {
                 var packageRegistration = new PackageRegistration { Id = "theId" };
                 var package = new Package { Version = "1.0", PackageRegistration = packageRegistration, Listed = false };
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(packageRepo: packageRepo);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
 
                 service.MarkPackageListed(package);
 
                 Assert.True(package.Listed);
+            }
+
+            [Fact]
+            public void DoNotCommitIfCommitChangesIsFalse()
+            {
+                // Assert
+                var packageRegistration = new PackageRegistration { Id = "theId" };
+                var package = new Package { Version = "1.0", PackageRegistration = packageRegistration, Listed = false };
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
+
+                // Act
+                service.MarkPackageListed(package, commitChanges: false);
+
+                // Assert
+                packageRepository.Verify(p => p.CommitChanges(), Times.Never());
+            }
+
+            [Fact]
+            public void CommitIfCommitChangesIsTrue()
+            {
+                // Assert
+                var packageRegistration = new PackageRegistration { Id = "theId" };
+                var package = new Package { Version = "1.0", PackageRegistration = packageRegistration, Listed = false };
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
+
+                // Act
+                service.MarkPackageListed(package, commitChanges: true);
+
+                // Assert
+                packageRepository.Verify(p => p.CommitChanges(), Times.Once());
             }
 
             [Fact]
@@ -1173,8 +1236,8 @@ namespace NuGetGallery
                             }
                     }.ToList();
                 packageRegistration.Packages = packages;
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(packageRepo: packageRepo);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
 
                 service.MarkPackageListed(packages[0]);
 
@@ -1192,12 +1255,44 @@ namespace NuGetGallery
             {
                 var packageRegistration = new PackageRegistration { Id = "theId" };
                 var package = new Package { Version = "1.0", PackageRegistration = packageRegistration };
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(packageRepo: packageRepo);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
 
                 service.MarkPackageUnlisted(package);
 
                 Assert.False(package.Listed);
+            }
+
+            [Fact]
+            public void CommitIfCommitChangesIfTrue()
+            {
+                // Act
+                var packageRegistration = new PackageRegistration { Id = "theId" };
+                var package = new Package { Version = "1.0", PackageRegistration = packageRegistration };
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
+
+                // Act
+                service.MarkPackageUnlisted(package, commitChanges: true);
+
+                // Assert
+                packageRepository.Verify(p => p.CommitChanges(), Times.Once());
+            }
+
+            [Fact]
+            public void DoNotCommitIfCommitChangesIfFalse()
+            {
+                // Act
+                var packageRegistration = new PackageRegistration { Id = "theId" };
+                var package = new Package { Version = "1.0", PackageRegistration = packageRegistration };
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
+
+                // Act
+                service.MarkPackageUnlisted(package, commitChanges: false);
+
+                // Assert
+                packageRepository.Verify(p => p.CommitChanges(), Times.Never());
             }
 
             [Fact]
@@ -1212,8 +1307,8 @@ namespace NuGetGallery
                             { Version = "1.0.0", PackageRegistration = packageRegistration, IsLatest = false, IsLatestStable = false }
                     }.ToList();
                 packageRegistration.Packages = packages;
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(packageRepo: packageRepo);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
 
                 service.MarkPackageUnlisted(packages[0]);
 
@@ -1229,8 +1324,8 @@ namespace NuGetGallery
                 var packageRegistration = new PackageRegistration { Id = "theId" };
                 var package = new Package { Version = "1.0.1", PackageRegistration = packageRegistration, IsLatest = true, IsLatestStable = true };
                 packageRegistration.Packages = new List<Package>(new[] { package });
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(packageRepo: packageRepo);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository);
 
                 service.MarkPackageUnlisted(package);
 
@@ -1254,20 +1349,41 @@ namespace NuGetGallery
                             }
                     };
                 package.PackageRegistration.Packages.Add(package);
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(
-                    packageRepo: packageRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
                 service.PublishPackage("theId", "1.0.42");
 
                 Assert.NotNull(package.Published);
-                packageRepo.Verify(x => x.CommitChanges());
+                packageRepository.Verify(x => x.CommitChanges());
             }
 
             [Fact]
-            public void WillSetUpdateIsLatestStableOnThePackageWhenItIsTheLatestVersion()
+            public void WillSetThePublishedDateOnThePackageBeingPublishedWithOverload()
+            {
+                var package = new Package
+                {
+                    Version = "1.0.42",
+                    PackageRegistration = new PackageRegistration
+                    {
+                        Id = "theId",
+                        Packages = new HashSet<Package>()
+                    }
+                };
+                package.PackageRegistration.Packages.Add(package);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+
+                service.PublishPackage(package, commitChanges: false);
+
+                Assert.NotNull(package.Published);
+                packageRepository.Verify(x => x.CommitChanges(), Times.Never());
+            }
+
+            [Fact]
+            public void WillSetUpdateIsLatestStableOnThePackageWhenItIsTheLatestVersionWithOverload()
             {
                 var package = new Package
                     {
@@ -1278,13 +1394,34 @@ namespace NuGetGallery
                                 Packages = new HashSet<Package>()
                             }
                     };
+
+                package.PackageRegistration.Packages.Add(package);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+
+                service.PublishPackage(package);
+
+                Assert.True(package.IsLatestStable);
+            }
+
+            [Fact]
+            public void WillSetUpdateIsLatestStableOnThePackageWhenItIsTheLatestVersion()
+            {
+                var package = new Package
+                {
+                    Version = "1.0.42",
+                    PackageRegistration = new PackageRegistration
+                    {
+                        Id = "theId",
+                        Packages = new HashSet<Package>()
+                    }
+                };
                 package.PackageRegistration.Packages.Add(package);
                 package.PackageRegistration.Packages.Add(new Package { Version = "1.0", PackageRegistration = package.PackageRegistration });
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(
-                    packageRepo: packageRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
                 service.PublishPackage("theId", "1.0.42");
 
@@ -1292,7 +1429,7 @@ namespace NuGetGallery
             }
 
             [Fact]
-            public void WillNotSetUpdateIsLatestStableOnThePackageWhenItIsNotTheLatestVersion()
+            public void WillNotSetUpdateIsLatestStableOnThePackageWhenItIsNotTheLatestVersionWithOverload()
             {
                 var package = new Package
                     {
@@ -1311,19 +1448,17 @@ namespace NuGetGallery
                             PackageRegistration = package.PackageRegistration,
                             Published = DateTime.UtcNow
                         });
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(
-                    packageRepo: packageRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
-                service.PublishPackage("theId", "1.0.42");
+                service.PublishPackage(package);
 
                 Assert.False(package.IsLatestStable);
             }
 
             [Fact]
-            public void SetUpdateUpdatesIsAbsoluteLatestForPrereleasePackage()
+            public void PublishPackageUpdatesIsAbsoluteLatestForPrereleasePackage()
             {
                 var package = new Package
                     {
@@ -1344,13 +1479,45 @@ namespace NuGetGallery
                         Published = DateTime.Now.AddDays(-1)
                     };
                 package.PackageRegistration.Packages.Add(package39);
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(
-                    packageRepo: packageRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
                 service.PublishPackage("theId", "1.0.42-alpha");
+                Assert.True(package39.IsLatestStable);
+                Assert.False(package39.IsLatest);
+                Assert.False(package.IsLatestStable);
+                Assert.True(package.IsLatest);
+            }
+
+            [Fact]
+            public void PublishPackageUpdatesIsAbsoluteLatestForPrereleasePackageWithOverload()
+            {
+                var package = new Package
+                {
+                    Version = "1.0.42-alpha",
+                    Published = DateTime.Now,
+                    PackageRegistration = new PackageRegistration
+                    {
+                        Id = "theId",
+                        Packages = new HashSet<Package>()
+                    },
+                    IsPrerelease = true,
+                };
+                package.PackageRegistration.Packages.Add(package);
+                var package39 = new Package
+                {
+                    Version = "1.0.39",
+                    PackageRegistration = package.PackageRegistration,
+                    Published = DateTime.Now.AddDays(-1)
+                };
+                package.PackageRegistration.Packages.Add(package39);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+
+                service.PublishPackage(package);
+
                 Assert.True(package39.IsLatestStable);
                 Assert.False(package39.IsLatest);
                 Assert.False(package.IsLatestStable);
@@ -1380,11 +1547,9 @@ namespace NuGetGallery
                         IsPrerelease = true
                     };
                 package.PackageRegistration.Packages.Add(package39);
-                var packageRepo = new Mock<IEntityRepository<Package>>();
-                var service = CreateService(
-                    packageRepo: packageRepo,
-                    setup:
-                        mockPackageSvc => { mockPackageSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
 
                 service.PublishPackage("theId", "1.0.42-alpha");
                 Assert.False(package39.IsLatestStable);
@@ -1394,19 +1559,60 @@ namespace NuGetGallery
             }
 
             [Fact]
+            public void SetUpdateDoesNotSetIsLatestStableForAnyIfAllPackagesArePrereleaseWithOverload()
+            {
+                var package = new Package
+                {
+                    Version = "1.0.42-alpha",
+                    Published = DateTime.Now,
+                    IsPrerelease = true,
+                    PackageRegistration = new PackageRegistration
+                    {
+                        Id = "theId",
+                        Packages = new HashSet<Package>()
+                    }
+                };
+                package.PackageRegistration.Packages.Add(package);
+                var package39 = new Package
+                {
+                    Version = "1.0.39-beta",
+                    PackageRegistration = package.PackageRegistration,
+                    Published = DateTime.Now.AddDays(-1),
+                    IsPrerelease = true
+                };
+                package.PackageRegistration.Packages.Add(package39);
+                var packageRepository = new Mock<IEntityRepository<Package>>();
+                var service = CreateService(packageRepository: packageRepository, setup:
+                        mockPackageService => { mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(package); });
+
+                service.PublishPackage(package);
+                Assert.False(package39.IsLatestStable);
+                Assert.False(package39.IsLatest);
+                Assert.False(package.IsLatestStable);
+                Assert.True(package.IsLatest);
+            }
+
+            [Fact]
             public void WillThrowIfThePackageDoesNotExist()
             {
-                var service = CreateService(
-                    setup:
-                        mockPackageSvc =>
-                            {
-                                mockPackageSvc.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(
-                                    (Package)null);
-                            });
+                var service = CreateService(setup:
+                        mockPackageService =>
+                        {
+                            mockPackageService.Setup(x => x.FindPackageByIdAndVersion(It.IsAny<string>(), It.IsAny<string>(), true)).Returns(
+                                (Package)null);
+                        });
 
                 var ex = Assert.Throws<EntityException>(() => service.PublishPackage("theId", "1.0.42"));
 
                 Assert.Equal(String.Format(Strings.PackageWithIdAndVersionNotFound, "theId", "1.0.42"), ex.Message);
+            }
+
+            [Fact]
+            public void WillThrowIfThePackageIsNull()
+            {
+                var service = CreateService();
+
+                Assert.Throws<ArgumentNullException>(() => service.PublishPackage(null));
             }
         }
 

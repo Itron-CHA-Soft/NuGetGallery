@@ -1,11 +1,12 @@
-﻿using Microsoft.WindowsAzure.StorageClient;
+﻿using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace NuGetGallery
 {
     public interface ICloudBlobContainer
     {
-        void CreateIfNotExist();
-        void SetPermissions(BlobContainerPermissions permissions);
-        ICloudBlob GetBlobReference(string blobAddressUri);
+        Task CreateIfNotExistAsync();
+        Task SetPermissionsAsync(BlobContainerPermissions permissions);
+        ISimpleCloudBlob GetBlobReference(string blobAddressUri);
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.WindowsAzure.StorageClient;
+﻿using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace NuGetGallery
 {
@@ -11,19 +12,23 @@ namespace NuGetGallery
             _blobContainer = blobContainer;
         }
 
-        public void CreateIfNotExist()
+        public Task CreateIfNotExistAsync()
         {
-            _blobContainer.CreateIfNotExist();
+            return Task.Factory.FromAsync<bool>(
+                _blobContainer.BeginCreateIfNotExists(null, null), 
+                _blobContainer.EndCreateIfNotExists);
         }
 
-        public void SetPermissions(BlobContainerPermissions permissions)
+        public Task SetPermissionsAsync(BlobContainerPermissions permissions)
         {
-            _blobContainer.SetPermissions(permissions);
+            return Task.Factory.FromAsync(
+                _blobContainer.BeginSetPermissions(permissions, null, null),
+                _blobContainer.EndSetPermissions);
         }
 
-        public ICloudBlob GetBlobReference(string blobAddressUri)
+        public ISimpleCloudBlob GetBlobReference(string blobAddressUri)
         {
-            return new CloudBlobWrapper(_blobContainer.GetBlobReference(blobAddressUri));
+            return new CloudBlobWrapper(_blobContainer.GetBlockBlobReference(blobAddressUri));
         }
     }
 }

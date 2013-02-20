@@ -1,14 +1,15 @@
 ﻿using System;
 using System.IO;
-using Microsoft.WindowsAzure.StorageClient;
+using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace NuGetGallery
 {
-    public class CloudBlobWrapper : ICloudBlob
+    public class CloudBlobWrapper : ISimpleCloudBlob
     {
-        private readonly CloudBlob _blob;
+        private readonly ICloudBlob _blob;
 
-        public CloudBlobWrapper(CloudBlob blob)
+        public CloudBlobWrapper(ICloudBlob blob)
         {
             _blob = blob;
         }
@@ -23,51 +24,29 @@ namespace NuGetGallery
             get { return _blob.Uri; }
         }
 
-        public void DeleteIfExists()
+        public Task DeleteIfExistsAsync()
         {
-            _blob.DeleteIfExists();
+            return Task.Factory.FromAsync<bool>(_blob.BeginDeleteIfExists(null, null), _blob.EndDeleteIfExists);
         }
 
-        public void DownloadToStream(Stream target)
+        public Task DownloadToStreamAsync(Stream target)
         {
-            try
-            {
-                _blob.DownloadToStream(target);
-            }
-            catch (StorageClientException ex)
-            {
-                throw new TestableStorageClientException(ex);
-            }
+            return Task.Factory.FromAsync(_blob.BeginDownloadToStream(target, null, null), _blob.EndDownloadToStream);
         }
 
-        public bool Exists()
+        public Task<bool> ExistsAsync()
         {
-            try
-            {
-                _blob.FetchAttributes();
-                return true;
-            }
-            catch (StorageClientException e)
-            {
-                if (e.ErrorCode == StorageErrorCode.ResourceNotFound)
-                {
-                    return false;
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            return Task.Factory.FromAsync<bool>(_blob.BeginExists(null, null), _blob.EndExists);
         }
 
-        public void SetProperties()
+        public Task SetPropertiesAsync()
         {
-            _blob.SetProperties();
+            return Task.Factory.FromAsync(_blob.BeginSetProperties(null, null), _blob.EndSetProperties);
         }
 
-        public void UploadFromStream(Stream packageFile)
+        public Task UploadFromStreamAsync(Stream packageFile)
         {
-            _blob.UploadFromStream(packageFile);
+            return Task.Factory.FromAsync(_blob.BeginUploadFromStream(packageFile, null, null), _blob.EndUploadFromStream);
         }
     }
 }

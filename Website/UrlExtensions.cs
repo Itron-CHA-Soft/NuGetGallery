@@ -1,4 +1,5 @@
-﻿using System.Web.Mvc;
+﻿using System;
+using System.Web.Mvc;
 
 namespace NuGetGallery
 {
@@ -10,9 +11,36 @@ namespace NuGetGallery
             return url.RequestContext.HttpContext.Request.RawUrl;
         }
 
+        public static string Absolute(this UrlHelper url, string path)
+        {
+            UriBuilder builder = GetCanonicalUrl(url);
+            builder.Path = path;
+            return builder.Uri.AbsoluteUri;
+        }
+
         public static string Home(this UrlHelper url)
         {
             return url.RouteUrl(RouteName.Home);
+        }
+
+        public static string Statistics(this UrlHelper url)
+        {
+            return url.RouteUrl(RouteName.StatisticsHome);
+        }
+
+        public static string StatisticsAllPackageDownloads(this UrlHelper url)
+        {
+            return url.RouteUrl(RouteName.StatisticsPackages);
+        }
+
+        public static string StatisticsAllPackageVersionDownloads(this UrlHelper url)
+        {
+            return url.RouteUrl(RouteName.StatisticsPackageVersions);
+        }
+
+        public static string StatisticsPackageDownloadByVersion(this UrlHelper url, string id)
+        {
+            return url.RouteUrl(RouteName.StatisticsPackageDownloadsByVersion, new { id });
         }
 
         public static string PackageList(this UrlHelper url, int page, string sortOrder, string searchTerm, bool prerelease)
@@ -32,7 +60,16 @@ namespace NuGetGallery
 
         public static string Package(this UrlHelper url, string id, string version)
         {
-            return url.RouteUrl(RouteName.DisplayPackage, new { id, version });
+            string result = url.RouteUrl(RouteName.DisplayPackage, new { id, version });
+
+            // Ensure trailing slashes for versionless package URLs, as a fix for package filenames that look like known file extensions
+            // https://github.com/NuGet/NuGetGallery/issues/657
+            if (version == null && result != null && !result.EndsWith("/", StringComparison.OrdinalIgnoreCase))
+            {
+                return result + "/";
+            }
+
+            return result;
         }
 
         public static string Package(this UrlHelper url, Package package)
@@ -74,7 +111,7 @@ namespace NuGetGallery
 
         public static string UploadPackage(this UrlHelper url)
         {
-            return url.Action(MVC.Packages.UploadPackage());
+            return url.Action(actionName: "UploadPackage", controllerName: MVC.Packages.Name);
         }
 
         public static string EditPackage(this UrlHelper url, IPackageVersionModel package)
@@ -99,7 +136,23 @@ namespace NuGetGallery
 
         public static string VerifyPackage(this UrlHelper url)
         {
-            return url.Action(MVC.Packages.VerifyPackage());
+            return url.Action(actionName: "VerifyPackage", controllerName:  MVC.Packages.Name);
+        }
+
+        public static string CancelUpload(this UrlHelper url)
+        {
+            return url.Action(actionName: "CancelUpload", controllerName: MVC.Packages.Name);
+        }
+
+        private static UriBuilder GetCanonicalUrl(UrlHelper url)
+        {
+            UriBuilder builder = new UriBuilder(url.RequestContext.HttpContext.Request.Url);
+            builder.Query = String.Empty;
+            if (builder.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+            {
+                builder.Host = builder.Host.Substring(4);
+            }
+            return builder;
         }
     }
 }

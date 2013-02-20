@@ -8,6 +8,7 @@ using System.ServiceModel.Web;
 using System.Web.Mvc;
 using System.Web.Routing;
 using NuGet;
+using NuGetGallery.Helpers;
 
 namespace NuGetGallery
 {
@@ -19,8 +20,8 @@ namespace NuGetGallery
         {
         }
 
-        public V2Feed(IEntitiesContext entities, IEntityRepository<Package> repo, IConfiguration configuration, ISearchService searchSvc)
-            : base(entities, repo, configuration, searchSvc)
+        public V2Feed(IEntitiesContext entities, IEntityRepository<Package> repo, IConfiguration configuration, ISearchService searchService)
+            : base(entities, repo, configuration, searchService)
         {
         }
 
@@ -28,7 +29,7 @@ namespace NuGetGallery
         {
             return new FeedContext<V2FeedPackage>
                 {
-                    Packages = PackageRepo.GetAll()
+                    Packages = PackageRepository.GetAll()
                         .WithoutVersionSort()
                         .ToV2FeedPackageQuery(Configuration.GetSiteRoot(UseHttps()))
                 };
@@ -43,7 +44,7 @@ namespace NuGetGallery
         [WebGet]
         public IQueryable<V2FeedPackage> Search(string searchTerm, string targetFramework, bool includePrerelease)
         {
-            var packages = PackageRepo.GetAll()
+            var packages = PackageRepository.GetAll()
                 .Include(p => p.PackageRegistration)
                 .Include(p => p.PackageRegistration.Owners)
                 .Where(p => p.Listed);
@@ -53,7 +54,7 @@ namespace NuGetGallery
         [WebGet]
         public IQueryable<V2FeedPackage> FindPackagesById(string id)
         {
-            return PackageRepo.GetAll().Include(p => p.PackageRegistration)
+            return PackageRepository.GetAll().Include(p => p.PackageRegistration)
                 .Where(p => p.PackageRegistration.Id.Equals(id, StringComparison.OrdinalIgnoreCase))
                 .ToV2FeedPackageQuery(GetSiteRoot());
         }
@@ -65,6 +66,14 @@ namespace NuGetGallery
             if (String.IsNullOrEmpty(packageIds) || String.IsNullOrEmpty(versions))
             {
                 return Enumerable.Empty<V2FeedPackage>().AsQueryable();
+            }
+
+            // Workaround https://github.com/NuGet/NuGetGallery/issues/674 for NuGet 2.1 client. Can probably eventually be retired (when nobody uses 2.1 anymore...)
+            // Note - it was URI un-escaping converting + to ' ', undoing that is actually a pretty conservative substitution because
+            // space characters are never acepted as valid by VersionUtility.ParseFrameworkName.
+            if (!string.IsNullOrEmpty(targetFrameworks))
+            {
+                targetFrameworks = targetFrameworks.Replace(' ', '+');
             }
 
             var idValues = packageIds.Trim().Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
@@ -94,7 +103,7 @@ namespace NuGetGallery
                 }
             }
 
-            var packages = PackageRepo.GetAll()
+            var packages = PackageRepository.GetAll()
                 .Include(p => p.PackageRegistration)
                 .Include(p => p.SupportedFrameworks)
                 .Where(p => p.Listed && (includePrerelease || !p.IsPrerelease) && idValues.Contains(p.PackageRegistration.Id))

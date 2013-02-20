@@ -2,9 +2,9 @@
 {
     public interface IConfiguration
     {
-        string AzureStorageAccessKey { get; }
-        string AzureStorageAccountName { get; }
-        string AzureStorageBlobUrl { get; }
+        string AzureDiagnosticsConnectionString { get; }
+        string AzureStorageConnectionString { get; }
+        string AzureStatisticsConnectionString { get; }
         string FileStorageDirectory { get; }
         string AzureCdnHost { get; }
         PackageStoreType PackageStoreType { get; }
@@ -12,6 +12,14 @@
         string SiteName { get; }
         bool UseEmulator { get; }
 
+        string AzureCacheEndpoint { get; }
+        string AzureCacheKey { get; }
+
+        string FacebookAppID { get; }
+        string SqlConnectionString { get; }
+
         string GetSiteRoot(bool useHttps);
+
+        bool ReadOnlyMode { get; }
     }
 }

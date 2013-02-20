@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using NuGet;
 
 namespace NuGetGallery
@@ -9,7 +10,7 @@ namespace NuGetGallery
             Package galleryPackage,
             IPackage nugetPackage)
         {
-            var curatedFeed = GetService<ICuratedFeedByNameQuery>().Execute("webmatrix");
+            var curatedFeed = GetService<ICuratedFeedByNameQuery>().Execute("webmatrix", includePackages: true);
             if (curatedFeed == null)
             {
                 return;
@@ -36,7 +37,7 @@ namespace NuGetGallery
                 }
             }
 
-            if (shouldBeIncluded)
+            if (shouldBeIncluded && DependenciesAreCurated(galleryPackage, curatedFeed))
             {
                 GetService<ICreateCuratedPackageCommand>().Execute(
                     curatedFeed.Key,
