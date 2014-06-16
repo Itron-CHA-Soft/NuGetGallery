@@ -280,14 +280,6 @@ namespace NuGetGallery
                 {
                     await PackageFileService.SavePackageFileAsync(package, uploadStream);
                 }
-
-                if (
-                    packageToPush.Metadata.Id.Equals(Constants.NuGetCommandLinePackageId,
-                                                     StringComparison.OrdinalIgnoreCase) && package.IsLatestStable)
-                {
-                    // If we're pushing a new stable version of NuGet.CommandLine, update the extracted executable.
-                    await NugetExeDownloaderService.UpdateExecutableAsync(packageToPush);
-                }
             }
 
             return new HttpStatusCodeResult(HttpStatusCode.Created);
@@ -346,6 +338,12 @@ namespace NuGetGallery
         {
             var alert = await ContentService.GetContentItemAsync(Constants.ContentNames.Alert, TimeSpan.Zero);
             return Content(alert == null ? (string)null : alert.ToString(), "text/html");
+        }
+
+        public virtual async Task<ActionResult> Team()
+        {
+            var team = await ContentService.GetContentItemAsync(Constants.ContentNames.Team, TimeSpan.FromHours(1));
+            return Content(team.ToString(), "application/json");
         }
 
         protected override void OnException(ExceptionContext filterContext)

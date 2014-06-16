@@ -262,6 +262,7 @@ namespace NuGetGallery
             }
 
             var packages = PackageService.FindPackagesByOwner(user, includeUnlisted: false)
+                .OrderByDescending(p => p.PackageRegistration.DownloadCount)
                 .Select(p => new PackageViewModel(p)
                 {
                     DownloadCount = p.PackageRegistration.DownloadCount,
@@ -315,7 +316,7 @@ namespace NuGetGallery
             }
             catch (EntityException e)
             {
-                ModelState.AddModelError("NewEmail", e.Message);
+                ModelState.AddModelError("ChangeEmail.NewEmail", e.Message);
                 return AccountView(model);
             }
 

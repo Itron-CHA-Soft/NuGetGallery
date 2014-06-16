@@ -57,6 +57,11 @@ namespace NuGetGallery
             routes.Add(new JsonRoute("json/{controller}"));
 
             routes.MapRoute(
+                RouteName.Contributors,
+                "pages/contributors",
+                new { controller = "Pages", action = "Contributors" });
+
+            routes.MapRoute(
                 RouteName.Policies,
                 "policies/{action}",
                 new { controller = "Pages" });
@@ -289,6 +294,18 @@ namespace NuGetGallery
                 constraints: new { httpMethod = new HttpMethodConstraint("GET") });
 
             routes.MapRoute(
+                "v2" + RouteName.DeletePackageApi,
+                "api/v2/package/{id}/{version}",
+                new { controller = "Api", action = "DeletePackageApi" },
+                constraints: new { httpMethod = new HttpMethodConstraint("DELETE") });
+
+            routes.MapRoute(
+                "v2" + RouteName.PublishPackageApi,
+                "api/v2/package/{id}/{version}",
+                new { controller = "Api", action = "PublishPackageApi" },
+                constraints: new { httpMethod = new HttpMethodConstraint("POST") });
+
+            routes.MapRoute(
                 "v2" + RouteName.DownloadPackage,
                 "api/v2/package/{id}/{version}",
                 defaults: new { controller = "Api", action = "GetPackageApi", version = UrlParameter.Optional },
@@ -299,18 +316,6 @@ namespace NuGetGallery
                 "api/v2/package",
                 defaults: new { controller = "Api", action = "PushPackageApi" },
                 constraints: new { httpMethod = new HttpMethodConstraint("PUT") });
-
-            routes.MapRoute(
-                "v2" + RouteName.DeletePackageApi,
-                "api/v2/package/{id}/{version}",
-                new { controller = "Api", action = "DeletePackage" },
-                constraints: new { httpMethod = new HttpMethodConstraint("DELETE") });
-
-            routes.MapRoute(
-                "v2" + RouteName.PublishPackageApi,
-                "api/v2/package/{id}/{version}",
-                new { controller = "Api", action = "PublishPackage" },
-                constraints: new { httpMethod = new HttpMethodConstraint("POST") });
 
             routes.MapRoute(
                 "v2PackageIds",
@@ -332,6 +337,12 @@ namespace NuGetGallery
                 RouteName.ServiceAlert,
                 "api/v2/service-alert",
                 defaults: new { controller = "Api", action = "ServiceAlert" },
+                constraints: new { httpMethod = new HttpMethodConstraint("GET") });
+
+            routes.MapRoute(
+                RouteName.Team,
+                "api/v2/team",
+                defaults: new { controller = "Api", action = "Team" },
                 constraints: new { httpMethod = new HttpMethodConstraint("GET") });
 
             routes.MapRoute(

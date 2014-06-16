@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
-using System.IO;
+using System.Threading.Tasks;
+
 
 namespace NuGetGallery.FunctionTests.Helpers
 {
@@ -102,6 +102,62 @@ namespace NuGetGallery.FunctionTests.Helpers
             {
                 Console.WriteLine("Exception : {0}", hre.Message);
                 return null;
+            }
+        }
+
+        public static bool ContainsResponseText(string url, params string[] expectedTexts)
+        {
+            WebRequest request = WebRequest.Create(url);
+            // Get the response.          
+            WebResponse response = request.GetResponse();
+            StreamReader sr = new StreamReader(response.GetResponseStream());
+            string responseText = sr.ReadToEnd();
+
+            foreach (string s in expectedTexts)
+            {
+                if (!responseText.Contains(s))
+                {
+                    Console.WriteLine("Response text does not contain expected text of " + s);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static bool ContainsResponseTextIgnoreCase(string url, params string[] expectedTexts)
+        {
+            WebRequest request = WebRequest.Create(url);
+            // Get the response.          
+            WebResponse response = request.GetResponse();
+            StreamReader sr = new StreamReader(response.GetResponseStream());
+            string responseText = sr.ReadToEnd().ToLowerInvariant();
+
+            foreach (string s in expectedTexts)
+            {
+                if (!responseText.Contains(s.ToLowerInvariant()))
+                {
+                    Console.WriteLine("Response text does not contain expected text of " + s);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static void DownloadPackageFromV2FeedWithOperation(string packageId, string version, string operation)
+        {
+            try
+            {
+                Task<string> downloadTask = ODataHelper.DownloadPackageFromFeed(packageId, version, operation);
+                string filename = downloadTask.Result;
+                //check if the file exists.
+                Assert.IsTrue(File.Exists(filename), Constants.PackageDownloadFailureMessage);
+                string downloadedPackageId = ClientSDKHelper.GetPackageIdFromNupkgFile(filename);
+                //Check that the downloaded Nupkg file is not corrupt and it indeed corresponds to the package which we were trying to download.
+                Assert.IsTrue(downloadedPackageId.Equals(packageId), Constants.UnableToZipError);
+            }
+            catch (Exception e)
+            {
+                Assert.Fail(e.Message);
             }
         }
     }

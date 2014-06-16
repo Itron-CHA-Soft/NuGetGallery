@@ -56,8 +56,7 @@ namespace NuGetGallery.FunctionTests.Helpers
             string formattedCount = GetDownLoadStatistics(packageId).ToString("N1", CultureInfo.InvariantCulture);
             if (formattedCount.EndsWith(".0"))
                 formattedCount = formattedCount.Remove(formattedCount.Length - 2);
-            return formattedCount;
-          
+            return formattedCount;         
         }
 
         /// <summary>
@@ -137,8 +136,7 @@ namespace NuGetGallery.FunctionTests.Helpers
             if (package != null)
                 return !package.Listed;
             else
-                return false;
-        
+                return false;  
         }
 
         /// <summary>
@@ -161,35 +159,31 @@ namespace NuGetGallery.FunctionTests.Helpers
         public static bool CheckIfPackageVersionExistsInSource(string packageId, string version, string sourceUrl)
         {
             bool found = false;
-            //    string requestURL = UrlHelper.V2FeedRootUrl + @"package/" + packageId + "/" + version + "?t=" + DateTime.Now.Ticks;
-            //    Console.WriteLine("The request URL for checking package existence was: " + requestURL);
-            //    HttpWebRequest packagePageRequest = (HttpWebRequest)HttpWebRequest.Create(requestURL);
-            //    // Increase the request timeout
-            //    packagePageRequest.Timeout = 2 * 5000;
-            //    HttpWebResponse packagePageResponse;
-            //    try
-            //    {
-            //        packagePageResponse = (HttpWebResponse)packagePageRequest.GetResponse();
-            //        if (packagePageResponse != null && (((HttpWebResponse)packagePageResponse).StatusCode == HttpStatusCode.OK)) found = true;
-            //    }
-            //    catch (WebException e)
-            //    {
-            //        Console.WriteLine(e.Message);
-            //    }
-
             // A new way to check if packages exist in source. The logic above often gives timeout errors randomly. 
             IPackageRepository repo = PackageRepositoryFactory.Default.CreateRepository(sourceUrl) as IPackageRepository;
             SemanticVersion semVersion;
             bool success = SemanticVersion.TryParse(version, out semVersion);
             if (success)
             {
-                for (int i = 0; ((i < 3) && (!found)); i++)
+                try
                 {
-                    // Wait for the search service to kick in, so that the package can be found via FindPackage(packageId, SemanticVersion)
-                    Thread.Sleep(60 * 1000);
-                    IPackage package = repo.FindPackage(packageId, semVersion);
-                    found = (package != null);
+                    for (int i = 0; ((i < 5) && (!found)); i++)
+                    {
+                        // Wait for the search service to kick in, so that the package can be found via FindPackage(packageId, SemanticVersion)
+                        Thread.Sleep(60 * 1000);
+                        IPackage package = repo.FindPackage(packageId, semVersion);
+                        found = (package != null);
+                    }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Exception thrown while checking the existence of package {0} with version (1}:\r\n {2}", packageId, version, ex.Message);
+                }
+            }
+
+            if (found)
+            {
+                Console.WriteLine("Found package {0} with version {1} in sourceUrl of {2}", packageId, version, sourceUrl);
             }
             return found;
         }

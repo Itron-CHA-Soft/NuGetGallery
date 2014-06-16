@@ -1,4 +1,5 @@
 nuget.exe
+*.ide
 
 *.results.xml
 _AzurePackage
@@ -158,6 +159,7 @@ src/NuGetGallery/App_Data/Files/Uploads
 src/NuGetGallery/App_Data/Mail
 src/NuGetGallery/App_Data/Lucene
 !src/NuGetGallery/Views/Packages/
+!src/NuGetGallery/Branding/Views/Packages/
 !src/NuGetGallery.Operations/Tasks/Backups/
 !src/NuGetGallery.Cloud/*Content/bin
 

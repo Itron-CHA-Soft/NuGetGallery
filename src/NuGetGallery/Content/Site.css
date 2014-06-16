@@ -984,12 +984,10 @@ fieldset.form {
 .field-hint-message,
 .field-validation-error {
     font-size: 1em;
-    left: 440px;
     line-height: 1.2em;
     padding: 5px;
-    position: absolute;
-    top: 30px;
-    width: 400px;
+    margin-top: 5px;
+    width: 416px;
     z-index: 550;
 }
 
@@ -1324,4 +1322,19 @@ span.sorted-by {
     font-size: 1.25em;
     margin: 0.5em;
     margin-left: 0;
+}
+
+ul#contributors {
+    display: none;
+}
+
+li.contributors-contributor {
+    display: inline-block;
+    padding: 5px;
+    margin: 0;
+}
+
+img.contributors-contributor-avatar {
+    width: 64px;
+    height: 64px;
 }
